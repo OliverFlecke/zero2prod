@@ -1,7 +1,5 @@
 use axum::http::StatusCode;
 use rstest::*;
-use sqlx::{Connection, PgConnection};
-use zero2prod::configuration::get_configuration;
 
 mod common;
 
@@ -9,10 +7,6 @@ mod common;
 async fn subscribe_returns_a_200_for_valid_form_data() {
     // Arrange
     let app = common::spawn_app().await.expect("failed to create app");
-    let configuration = get_configuration().expect("failed to read configuration");
-    let mut pg_connection = PgConnection::connect(&configuration.database().connection_string())
-        .await
-        .expect("failed to connect to Postgres");
     let client = reqwest::Client::new();
 
     // Act
@@ -29,7 +23,7 @@ async fn subscribe_returns_a_200_for_valid_form_data() {
     assert_eq!(response.status(), StatusCode::OK);
 
     let saved = sqlx::query!("SELECT email, name FROM subscriptions",)
-        .fetch_one(&mut pg_connection)
+        .fetch_one(&app.db_pool)
         .await
         .expect("failed tot fetch saved subscription");
     assert_eq!(saved.email, "ursula_le_guin@gmail.com");

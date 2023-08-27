@@ -11,7 +11,7 @@ pub fn get_configuration() -> Result<Settings, config::ConfigError> {
 
 #[derive(Debug, serde::Deserialize, Getters)]
 pub struct Settings {
-    database: DatabaseSettings,
+    pub database: DatabaseSettings,
     application_port: u16,
 }
 
@@ -21,14 +21,24 @@ pub struct DatabaseSettings {
     password: String,
     port: u16,
     host: String,
-    database_name: String,
+    pub database_name: String,
 }
 
 impl DatabaseSettings {
+    /// Get the connection string to the database.
     pub fn connection_string(&self) -> String {
         format!(
             "postgres://{}:{}@{}:{}/{}",
             self.username, self.password, self.host, self.port, self.database_name
+        )
+    }
+
+    /// Get the connection string to the postgres instance, but without a
+    /// specific database.
+    pub fn connection_string_without_db(&self) -> String {
+        format!(
+            "postgres://{}:{}@{}:{}",
+            self.username, self.password, self.host, self.port
         )
     }
 }
