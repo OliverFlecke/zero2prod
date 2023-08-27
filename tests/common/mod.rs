@@ -1,8 +1,22 @@
 use derive_getters::Getters;
+use once_cell::sync::Lazy;
 use sqlx::{Connection, Executor, PgConnection, PgPool};
 use std::net::TcpListener;
 use uuid::Uuid;
-use zero2prod::configuration::{get_configuration, DatabaseSettings};
+use zero2prod::{
+    configuration::{get_configuration, DatabaseSettings},
+    telemetry::{get_subscriber, init_subscriber},
+};
+
+static TRACING: Lazy<()> = Lazy::new(|| {
+    if std::env::var("TEST_LOG").is_ok() {
+        let subscriber = get_subscriber("test".into(), std::io::stdout);
+        init_subscriber(subscriber);
+    } else {
+        let subscriber = get_subscriber("test".into(), std::io::sink);
+        init_subscriber(subscriber);
+    };
+});
 
 #[derive(Debug, Getters)]
 pub struct TestApp {
@@ -12,6 +26,7 @@ pub struct TestApp {
 
 /// Spawn a instance of the app on a random port.
 pub async fn spawn_app() -> anyhow::Result<TestApp> {
+    Lazy::force(&TRACING);
     let mut configuration = get_configuration().expect("Failed to read configuration");
 
     // Setup database

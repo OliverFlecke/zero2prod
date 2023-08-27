@@ -10,7 +10,10 @@ async fn main() -> anyhow::Result<()> {
         .await
         .expect("Failed to connect to Postgres");
 
-    telemetry::init_subscriber(telemetry::get_subscriber("zero2prod".to_string()));
+    telemetry::init_subscriber(telemetry::get_subscriber(
+        "zero2prod".to_string(),
+        std::io::stdout,
+    ));
 
     App::serve(listener, pg_pool).await?;
 
