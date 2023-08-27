@@ -1,4 +1,4 @@
-use hyper::StatusCode;
+use axum::http::StatusCode;
 
 mod common;
 

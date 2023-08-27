@@ -1,11 +1,10 @@
 use std::net::TcpListener;
+use zero2prod::configuration::get_configuration;
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
-    let port = std::env::var("PORT")
-        .map(|p| p.parse::<usize>().expect("PORT is not a valid integer"))
-        .unwrap_or(4000);
-    let listener = TcpListener::bind(format!("0.0.0.0:{port}"))?;
+    let configuration = get_configuration().expect("Failed to read configuration.");
+    let listener = TcpListener::bind(format!("0.0.0.0:{}", configuration.application_port()))?;
 
     zero2prod::App::create().serve(listener).await?;
 

@@ -1,3 +1,4 @@
+pub mod configuration;
 mod routes;
 
 use axum::{Router, Server};
@@ -19,7 +20,7 @@ impl App {
 
     /// Serve this app on the given [`TcpListener`].
     pub async fn serve(self, host: TcpListener) -> anyhow::Result<()> {
-        Self::setup_tracing()?;
+        // Self::setup_tracing()?;
         tracing::info!("Server running at {}", host.local_addr()?);
 
         Server::from_tcp(host)?
@@ -30,8 +31,9 @@ impl App {
 
     /// Builder the router for the application.
     fn build_router() -> Router {
-        Router::new().nest("/health", routes::health::create_router())
-        // .fallback(not_found)
+        Router::new()
+            .nest("/health", routes::health::create_router())
+            .nest("/subscriptions", routes::subscribe::create_router())
     }
 
     fn setup_tracing() -> anyhow::Result<()> {
