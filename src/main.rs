@@ -1,6 +1,6 @@
 use sqlx::PgPool;
 use std::net::TcpListener;
-use zero2prod::configuration::get_configuration;
+use zero2prod::{configuration::get_configuration, telemetry, App};
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
@@ -10,7 +10,9 @@ async fn main() -> anyhow::Result<()> {
         .await
         .expect("Failed to connect to Postgres");
 
-    zero2prod::App::serve(listener, pg_pool).await?;
+    telemetry::init_subscriber(telemetry::get_subscriber("zero2prod".to_string()));
+
+    App::serve(listener, pg_pool).await?;
 
     Ok(())
 }
