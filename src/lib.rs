@@ -1,3 +1,5 @@
+mod routes;
+
 use axum::{Router, Server};
 use std::net::TcpListener;
 
@@ -28,8 +30,7 @@ impl App {
 
     /// Builder the router for the application.
     fn build_router() -> Router {
-        Router::new()
-        // .nest("/health", health_check::create_router())
+        Router::new().nest("/health", routes::health::create_router())
         // .fallback(not_found)
     }
 
