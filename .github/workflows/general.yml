@@ -146,8 +146,6 @@ jobs:
           command: generate-lockfile
       - name: cargo llvm-cov
         run: cargo llvm-cov --locked --all-features --lcov --output-path lcov.info
-        env:
-          DATABASE_URL: postgres://postgres:password@localhost:5432/postgres
       - name: Upload to codecov.io
         uses: codecov/codecov-action@v3
         with:
