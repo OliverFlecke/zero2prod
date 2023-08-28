@@ -1,6 +1,5 @@
 use derive_getters::Getters;
 use once_cell::sync::Lazy;
-use secrecy::ExposeSecret;
 use sqlx::{Connection, Executor, PgConnection, PgPool};
 use std::net::TcpListener;
 use uuid::Uuid;
@@ -31,7 +30,7 @@ pub async fn spawn_app() -> anyhow::Result<TestApp> {
     let mut configuration = get_configuration().expect("Failed to read configuration");
 
     // Setup database
-    configuration.database.database_name = Uuid::new_v4().to_string();
+    configuration.database.name = Uuid::new_v4().to_string();
     let db_pool = configure_database(configuration.database()).await;
 
     // Create listener
@@ -51,7 +50,7 @@ pub async fn configure_database(config: &DatabaseSettings) -> PgPool {
         .expect("Failed to connect to Postgres");
 
     connection
-        .execute(format!(r#"CREATE DATABASE "{}";"#, config.database_name()).as_str())
+        .execute(format!(r#"CREATE DATABASE "{}";"#, config.name()).as_str())
         .await
         .expect("Failed to create database.");
 

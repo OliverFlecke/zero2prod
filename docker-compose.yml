@@ -1,0 +1,16 @@
+services:
+  db:
+    image: postgres:15.4-alpine3.18
+    environment:
+      POSTGRES_DB: newsletter
+      POSTGRES_PASSWORD: secret_password
+
+  service:
+    image: zero2prod:latest
+    ports:
+      - 8000:8000
+    environment:
+      APP_DATABASE__HOST: db
+      APP_DATABASE__NAME: newsletter
+      APP_DATABASE__PASSWORD: secret_password
+      APP_DATABASE__REQUIRE_SSL: false

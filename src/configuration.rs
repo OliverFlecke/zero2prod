@@ -22,6 +22,11 @@ pub fn get_configuration() -> Result<Settings, config::ConfigError> {
         .add_source(File::from(
             configuration_directory.join(environment_filename),
         ))
+        .add_source(
+            config::Environment::with_prefix("APP")
+                .prefix_separator("_")
+                .separator("__"),
+        )
         .build()?
         .try_deserialize()
 }
@@ -87,14 +92,14 @@ pub struct DatabaseSettings {
     #[serde(deserialize_with = "deserialize_number_from_string")]
     port: u16,
     host: String,
-    pub database_name: String,
+    pub name: String,
     require_ssl: bool,
 }
 
 impl DatabaseSettings {
     /// Get the connection string to the database.
     pub fn with_db(&self) -> PgConnectOptions {
-        self.without_db().database(self.database_name())
+        self.without_db().database(self.name())
     }
 
     /// Get the connection string to the postgres instance, but without a
