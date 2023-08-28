@@ -1,15 +1,16 @@
 use secrecy::ExposeSecret;
-use sqlx::PgPool;
-use std::net::TcpListener;
+use sqlx::postgres::PgPoolOptions;
+use std::{net::TcpListener, time::Duration};
 use zero2prod::{configuration::get_configuration, telemetry, App};
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
     let configuration = get_configuration().expect("Failed to read configuration.");
-    let listener = TcpListener::bind(format!("0.0.0.0:{}", configuration.application_port()))?;
-    let pg_pool = PgPool::connect(&configuration.database().connection_string().expose_secret())
-        .await
-        .expect("Failed to connect to Postgres");
+    let listener = TcpListener::bind(configuration.application().address())?;
+    let pg_pool = PgPoolOptions::new()
+        .acquire_timeout(Duration::from_secs(2))
+        .connect_lazy(&configuration.database().connection_string().expose_secret())
+        .expect("Failed to create Postgres connection pool");
 
     telemetry::init_subscriber(telemetry::get_subscriber(
         "zero2prod".to_string(),
