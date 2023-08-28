@@ -1,4 +1,7 @@
-use crate::state::AppState;
+use crate::{
+    domain::{NewSubscriber, SubscriberEmail, SubscriberName},
+    state::AppState,
+};
 use axum::{extract::State, http::StatusCode, response::IntoResponse, routing::post, Form, Router};
 use chrono::Utc;
 use sqlx::PgPool;
@@ -9,6 +12,17 @@ use uuid::Uuid;
 struct FormData {
     email: String,
     name: String,
+}
+
+impl TryFrom<FormData> for NewSubscriber {
+    type Error = String;
+
+    fn try_from(value: FormData) -> Result<Self, Self::Error> {
+        let name = SubscriberName::parse(value.name)?;
+        let email = SubscriberEmail::parse(value.email)?;
+
+        Ok(Self { email, name })
+    }
 }
 
 /// Create a router to serve endpoints.
@@ -29,20 +43,31 @@ async fn subscribe(
     State(pool): State<Arc<PgPool>>,
     Form(form): Form<FormData>,
 ) -> impl IntoResponse {
-    match insert_subscriber(pool.as_ref(), &form).await {
+    let new_subscriber = match form.try_into() {
+        Ok(x) => x,
+        Err(_) => return StatusCode::UNPROCESSABLE_ENTITY,
+    };
+
+    match insert_subscriber(pool.as_ref(), &new_subscriber).await {
         Ok(_) => StatusCode::OK,
         Err(_) => StatusCode::INTERNAL_SERVER_ERROR,
     }
 }
 
-#[tracing::instrument(name = "Saving new subscriber details in database", skip(form, pool))]
-async fn insert_subscriber(pool: &PgPool, form: &FormData) -> Result<(), sqlx::Error> {
+#[tracing::instrument(
+    name = "Saving new subscriber details in database",
+    skip(new_subscriber, pool)
+)]
+async fn insert_subscriber(
+    pool: &PgPool,
+    new_subscriber: &NewSubscriber,
+) -> Result<(), sqlx::Error> {
     sqlx::query!(
         r#"INSERT INTO subscriptions (id, email, name, subscribed_at)
            VALUES($1, $2, $3, $4)"#,
         Uuid::new_v4(),
-        form.email,
-        form.name,
+        new_subscriber.email.as_ref(),
+        new_subscriber.name.as_ref(),
         Utc::now()
     )
     .execute(pool)

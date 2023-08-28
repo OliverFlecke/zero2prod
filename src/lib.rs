@@ -1,4 +1,5 @@
 pub mod configuration;
+pub mod domain;
 mod routes;
 mod state;
 pub mod telemetry;
