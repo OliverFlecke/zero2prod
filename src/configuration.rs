@@ -1,6 +1,11 @@
 use config::{Config, File};
 use derive_getters::Getters;
 use secrecy::{ExposeSecret, Secret};
+use serde_aux::field_attributes::deserialize_number_from_string;
+use sqlx::{
+    postgres::{PgConnectOptions, PgSslMode},
+    ConnectOptions,
+};
 
 /// Retrive the configuration for the application.
 pub fn get_configuration() -> Result<Settings, config::ConfigError> {
@@ -21,6 +26,8 @@ pub fn get_configuration() -> Result<Settings, config::ConfigError> {
         .try_deserialize()
 }
 
+/// Environmnet to run the application in. Used to determine which configuration
+/// to use.
 #[derive(Debug)]
 enum Environment {
     Local,
@@ -61,6 +68,7 @@ pub struct Settings {
 /// General application settings.
 #[derive(Debug, serde::Deserialize, Getters)]
 pub struct ApplicationSettings {
+    #[serde(deserialize_with = "deserialize_number_from_string")]
     port: u16,
     host: String,
 }
@@ -76,33 +84,32 @@ impl ApplicationSettings {
 pub struct DatabaseSettings {
     username: String,
     password: Secret<String>,
+    #[serde(deserialize_with = "deserialize_number_from_string")]
     port: u16,
     host: String,
     pub database_name: String,
+    require_ssl: bool,
 }
 
 impl DatabaseSettings {
     /// Get the connection string to the database.
-    pub fn connection_string(&self) -> Secret<String> {
-        Secret::new(format!(
-            "postgres://{}:{}@{}:{}/{}",
-            self.username,
-            self.password.expose_secret(),
-            self.host,
-            self.port,
-            self.database_name
-        ))
+    pub fn with_db(&self) -> PgConnectOptions {
+        self.without_db().database(self.database_name())
     }
 
     /// Get the connection string to the postgres instance, but without a
     /// specific database.
-    pub fn connection_string_without_db(&self) -> Secret<String> {
-        Secret::new(format!(
-            "postgres://{}:{}@{}:{}",
-            self.username,
-            self.password.expose_secret(),
-            self.host,
-            self.port
-        ))
+    pub fn without_db(&self) -> PgConnectOptions {
+        PgConnectOptions::new()
+            .host(self.host())
+            .username(self.username())
+            .password(self.password().expose_secret())
+            .port(self.port)
+            .ssl_mode(if self.require_ssl {
+                PgSslMode::Require
+            } else {
+                PgSslMode::Prefer
+            })
+            .log_statements(tracing_log::log::LevelFilter::Trace)
     }
 }

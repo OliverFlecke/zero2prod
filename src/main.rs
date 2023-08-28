@@ -1,4 +1,3 @@
-use secrecy::ExposeSecret;
 use sqlx::postgres::PgPoolOptions;
 use std::{net::TcpListener, time::Duration};
 use zero2prod::{configuration::get_configuration, telemetry, App};
@@ -9,8 +8,7 @@ async fn main() -> anyhow::Result<()> {
     let listener = TcpListener::bind(configuration.application().address())?;
     let pg_pool = PgPoolOptions::new()
         .acquire_timeout(Duration::from_secs(2))
-        .connect_lazy(&configuration.database().connection_string().expose_secret())
-        .expect("Failed to create Postgres connection pool");
+        .connect_lazy_with(configuration.database().with_db());
 
     telemetry::init_subscriber(telemetry::get_subscriber(
         "zero2prod".to_string(),
