@@ -7,6 +7,13 @@ use axum::{Router, Server};
 use sqlx::PgPool;
 use state::AppState;
 use std::net::TcpListener;
+use tower::ServiceBuilder;
+use tower_http::{
+    request_id::MakeRequestUuid,
+    trace::{DefaultMakeSpan, DefaultOnRequest, DefaultOnResponse, TraceLayer},
+    ServiceBuilderExt,
+};
+use tracing::Level;
 
 #[derive(Debug)]
 pub struct App;
@@ -26,9 +33,6 @@ impl App {
 
     /// Builder the router for the application.
     fn build_router(app_state: &AppState) -> Router {
-        use tower_http::trace::{DefaultMakeSpan, DefaultOnRequest, DefaultOnResponse, TraceLayer};
-        use tracing::Level;
-
         Router::new()
             .nest("/health", routes::health::create_router())
             .nest(
@@ -36,10 +40,23 @@ impl App {
                 routes::subscribe::create_router().with_state(app_state.clone()),
             )
             .layer(
-                TraceLayer::new_for_http()
-                    .make_span_with(DefaultMakeSpan::new().level(Level::INFO))
-                    .on_request(DefaultOnRequest::new().level(Level::INFO))
-                    .on_response(DefaultOnResponse::new().level(Level::INFO)),
+                ServiceBuilder::new()
+                    .set_x_request_id(MakeRequestUuid::default())
+                    .layer(
+                        TraceLayer::new_for_http()
+                            .make_span_with(
+                                DefaultMakeSpan::new()
+                                    .level(Level::INFO)
+                                    .include_headers(true),
+                            )
+                            .on_request(DefaultOnRequest::new().level(Level::INFO))
+                            .on_response(
+                                DefaultOnResponse::new()
+                                    .level(Level::INFO)
+                                    .include_headers(true),
+                            ),
+                    )
+                    .propagate_x_request_id(),
             )
     }
 }

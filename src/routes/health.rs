@@ -8,6 +8,6 @@ pub fn create_router() -> Router {
 /// Simple "is_alive" endpoint that will always return a 200 OK.
 /// Used to indicate when the webserver is up and running.
 async fn is_alive() -> StatusCode {
-    tracing::trace!("Service is alive");
+    tracing::debug!("Service is alive");
     StatusCode::OK
 }
