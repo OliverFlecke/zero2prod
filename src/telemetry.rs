@@ -14,7 +14,7 @@ where
         .with_target("hyper", Level::INFO)
         .with_default(Level::WARN);
 
-    let formatting_layer = BunyanFormattingLayer::new(name.into(), sink);
+    let formatting_layer = BunyanFormattingLayer::new(name, sink);
 
     Registry::default()
         .with(filter)
