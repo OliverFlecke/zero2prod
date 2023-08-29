@@ -1,7 +1,5 @@
-mod common;
-
+use crate::utils::spawn_app;
 use axum::http::StatusCode;
-use common::spawn_app;
 use pretty_assertions::assert_eq;
 use rstest::*;
 

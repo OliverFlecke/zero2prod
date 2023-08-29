@@ -1,11 +1,10 @@
+use crate::utils::spawn_app;
 use axum::http::StatusCode;
-
-mod common;
 
 #[tokio::test]
 async fn health_check_works() {
     // Arrange
-    let app = common::spawn_app().await.expect("Failed to spawn our app.");
+    let app = spawn_app().await.expect("Failed to spawn our app.");
     let client = reqwest::Client::new();
 
     // Act
