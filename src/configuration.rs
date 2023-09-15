@@ -1,5 +1,3 @@
-use std::time::Duration;
-
 use config::{Config, File};
 use derive_getters::Getters;
 use secrecy::{ExposeSecret, Secret};
@@ -8,6 +6,7 @@ use sqlx::{
     postgres::{PgConnectOptions, PgSslMode},
     ConnectOptions,
 };
+use std::time::Duration;
 
 use crate::domain::SubscriberEmail;
 
@@ -71,7 +70,7 @@ impl TryFrom<String> for Environment {
 #[derive(Debug, serde::Deserialize, Getters)]
 pub struct Settings {
     pub database: DatabaseSettings,
-    application: ApplicationSettings,
+    pub application: ApplicationSettings,
     email_client: EmailClientSettings,
 }
 
@@ -79,7 +78,7 @@ pub struct Settings {
 #[derive(Debug, serde::Deserialize, Getters)]
 pub struct ApplicationSettings {
     #[serde(deserialize_with = "deserialize_number_from_string")]
-    port: u16,
+    pub port: u16,
     host: String,
 }
 

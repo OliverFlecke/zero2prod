@@ -6,10 +6,11 @@ mod state;
 pub mod telemetry;
 
 use axum::{Router, Server};
+use configuration::Settings;
 use email_client::EmailClient;
-use sqlx::PgPool;
+use sqlx::{postgres::PgPoolOptions, PgPool};
 use state::AppState;
-use std::net::TcpListener;
+use std::{net::TcpListener, time::Duration};
 use tower::ServiceBuilder;
 use tower_http::{
     request_id::MakeRequestUuid,
@@ -19,23 +20,46 @@ use tower_http::{
 use tracing::Level;
 
 #[derive(Debug)]
-pub struct App;
+pub struct App {
+    listener: TcpListener,
+    db_pool: PgPool,
+    email_client: EmailClient,
+}
 
 impl App {
-    /// Serve this app on the given [`TcpListener`].
-    pub async fn serve(
-        host: TcpListener,
-        db_pool: PgPool,
-        email_client: EmailClient,
-    ) -> anyhow::Result<()> {
-        tracing::info!("Server running at {}", host.local_addr()?);
-        let app_state = AppState::create(db_pool, email_client).await;
+    pub fn build(config: Settings) -> anyhow::Result<Self> {
+        let listener = TcpListener::bind(config.application().address())?;
+        let db_pool = PgPoolOptions::new()
+            .acquire_timeout(Duration::from_secs(2))
+            .connect_lazy_with(config.database().with_db());
+
+        let email_client = config
+            .email_client()
+            .try_into()
+            .expect("Failed to create email client");
+
+        Ok(Self {
+            listener,
+            db_pool,
+            email_client,
+        })
+    }
+
+    /// Run the server until it is stopped.
+    pub async fn run_until_stopped(self) -> anyhow::Result<()> {
+        tracing::info!("Server running at {}", self.listener.local_addr()?);
+        let app_state = AppState::create(self.db_pool, self.email_client).await;
         let router = Self::build_router(&app_state);
 
-        Server::from_tcp(host)?
+        Server::from_tcp(self.listener)?
             .serve(router.into_make_service())
             .await?;
         Ok(())
+    }
+
+    /// Get the port which the server is being run on.
+    pub fn port(&self) -> u16 {
+        self.listener.local_addr().unwrap().port()
     }
 
     /// Builder the router for the application.
