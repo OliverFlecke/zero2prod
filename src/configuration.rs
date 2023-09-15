@@ -1,3 +1,5 @@
+use std::time::Duration;
+
 use config::{Config, File};
 use derive_getters::Getters;
 use secrecy::{ExposeSecret, Secret};
@@ -130,6 +132,8 @@ pub struct EmailClientSettings {
     #[getter(skip)]
     sender: String,
     authorization_token: Secret<String>,
+    #[getter(skip)]
+    timeout_milliseconds: u64,
 }
 
 impl EmailClientSettings {
@@ -139,5 +143,9 @@ impl EmailClientSettings {
 
     pub fn base_url(&self) -> Result<reqwest::Url, url::ParseError> {
         reqwest::Url::parse(&self.base_url)
+    }
+
+    pub fn timeout_duration(&self) -> Duration {
+        Duration::from_millis(self.timeout_milliseconds)
     }
 }
