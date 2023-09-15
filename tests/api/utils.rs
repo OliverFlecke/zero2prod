@@ -72,3 +72,31 @@ pub async fn configure_database(config: &DatabaseSettings) -> PgPool {
 
     db_pool
 }
+
+pub mod client {
+    use super::TestApp;
+    use reqwest::Client;
+
+    /// Implemenation of a client for the services API.
+    impl TestApp {
+        /// Send a request to the health check endpoint.
+        pub async fn health_check(&self) -> reqwest::Response {
+            Client::new()
+                .get(format!("{}/health", self.address))
+                .send()
+                .await
+                .expect("Failed to execute request.")
+        }
+
+        /// Send a POST request to the subscription endpoint.
+        pub async fn post_subscriptions(&self, body: String) -> reqwest::Response {
+            Client::new()
+                .post(&format!("{}/subscriptions", self.address))
+                .header("Content-Type", "application/x-www-form-urlencoded")
+                .body(body)
+                .send()
+                .await
+                .expect("Failed to execute request.")
+        }
+    }
+}

@@ -7,17 +7,10 @@ use rstest::*;
 async fn subscribe_returns_a_200_for_valid_form_data() {
     // Arrange
     let app = spawn_app().await.expect("failed to create app");
-    let client = reqwest::Client::new();
 
     // Act
     let body = "name=le%20guin&email=ursula_le_guin%40gmail.com";
-    let response = client
-        .post(&format!("{}/subscriptions", app.address()))
-        .header("Content-Type", "application/x-www-form-urlencoded")
-        .body(body)
-        .send()
-        .await
-        .expect("Failed to execute request.");
+    let response = app.post_subscriptions(body.into()).await;
 
     // Assert
     assert_eq!(response.status(), StatusCode::OK);
@@ -41,16 +34,9 @@ async fn subscribe_returns_a_422_when_data_is_missing(
 ) {
     // Arrange
     let app = spawn_app().await.expect("failed to start app");
-    let client = reqwest::Client::new();
 
     // Act
-    let response = client
-        .post(&format!("{}/subscriptions", app.address()))
-        .header("Content-Type", "application/x-www-form-urlencoded")
-        .body(body)
-        .send()
-        .await
-        .expect("Failed to execute request.");
+    let response = app.post_subscriptions(body).await;
 
     // Assert
     assert_eq!(
@@ -73,16 +59,9 @@ async fn subscribe_returns_a_422_when_fields_are_present_but_empty(
 ) {
     // Arrange
     let app = spawn_app().await.expect("Failed to start app");
-    let client = reqwest::Client::new();
 
     // Act
-    let response = client
-        .post(&format!("{}/subscriptions", app.address()))
-        .header("Content-Type", "application/x-www-form-urlencoded")
-        .body(body)
-        .send()
-        .await
-        .expect("Failed to execute request.");
+    let response = app.post_subscriptions(body).await;
 
     // Assert
     assert_eq!(

@@ -5,14 +5,9 @@ use axum::http::StatusCode;
 async fn health_check_works() {
     // Arrange
     let app = spawn_app().await.expect("Failed to spawn our app.");
-    let client = reqwest::Client::new();
 
     // Act
-    let response = client
-        .get(format!("{}/health", app.address()))
-        .send()
-        .await
-        .expect("Failed to execute request.");
+    let response = app.health_check().await;
 
     // Assert
     assert_eq!(response.status(), StatusCode::OK);
