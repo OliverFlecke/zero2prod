@@ -7,6 +7,8 @@ use sqlx::{
     ConnectOptions,
 };
 
+use crate::domain::SubscriberEmail;
+
 /// Retrive the configuration for the application.
 pub fn get_configuration() -> Result<Settings, config::ConfigError> {
     let base_path = std::env::current_dir().expect("Failed to determine the current directory");
@@ -68,6 +70,7 @@ impl TryFrom<String> for Environment {
 pub struct Settings {
     pub database: DatabaseSettings,
     application: ApplicationSettings,
+    email_client: EmailClientSettings,
 }
 
 /// General application settings.
@@ -116,5 +119,25 @@ impl DatabaseSettings {
                 PgSslMode::Prefer
             })
             .log_statements(tracing_log::log::LevelFilter::Trace)
+    }
+}
+
+/// Settings for the email client.
+#[derive(Debug, serde::Deserialize, Getters)]
+pub struct EmailClientSettings {
+    #[getter(skip)]
+    base_url: String,
+    #[getter(skip)]
+    sender: String,
+    authorization_token: Secret<String>,
+}
+
+impl EmailClientSettings {
+    pub fn sender(&self) -> Result<SubscriberEmail, String> {
+        SubscriberEmail::parse(self.sender.clone())
+    }
+
+    pub fn base_url(&self) -> Result<reqwest::Url, url::ParseError> {
+        reqwest::Url::parse(&self.base_url)
     }
 }

@@ -37,8 +37,13 @@ pub async fn spawn_app() -> anyhow::Result<TestApp> {
     let listener = TcpListener::bind("127.0.0.1:0").expect("Failed to bind address");
     let address = format!("http://{}", listener.local_addr().unwrap());
 
+    let email_client = configuration
+        .email_client()
+        .try_into()
+        .expect("Email client config is invalid");
+
     // Start server
-    let server = zero2prod::App::serve(listener, db_pool.clone());
+    let server = zero2prod::App::serve(listener, db_pool.clone(), email_client);
     let _ = tokio::spawn(server);
 
     Ok(TestApp { address, db_pool })

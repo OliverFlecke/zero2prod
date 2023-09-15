@@ -1,10 +1,12 @@
 pub mod configuration;
 pub mod domain;
+pub mod email_client;
 mod routes;
 mod state;
 pub mod telemetry;
 
 use axum::{Router, Server};
+use email_client::EmailClient;
 use sqlx::PgPool;
 use state::AppState;
 use std::net::TcpListener;
@@ -21,9 +23,13 @@ pub struct App;
 
 impl App {
     /// Serve this app on the given [`TcpListener`].
-    pub async fn serve(host: TcpListener, db_pool: PgPool) -> anyhow::Result<()> {
+    pub async fn serve(
+        host: TcpListener,
+        db_pool: PgPool,
+        email_client: EmailClient,
+    ) -> anyhow::Result<()> {
         tracing::info!("Server running at {}", host.local_addr()?);
-        let app_state = AppState::create(db_pool).await;
+        let app_state = AppState::create(db_pool, email_client).await;
         let router = Self::build_router(&app_state);
 
         Server::from_tcp(host)?
