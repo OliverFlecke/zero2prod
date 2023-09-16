@@ -54,6 +54,7 @@ features = [
 claims = "0.7.1"
 fake = "2.8.0"
 hyper = "0.14.27"
+linkify = "0.10.0"
 once_cell = "1.18.0"
 pretty_assertions = "1.4.0"
 proptest = "1.2.0"

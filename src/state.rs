@@ -23,6 +23,7 @@ impl AppState {
 #[duplicate_item(
     service_type    field;
     [ PgPool ]      [ db_pool ];
+    [ EmailClient ] [ email_client ];
 )]
 impl FromRef<AppState> for Arc<service_type> {
     fn from_ref(app_state: &AppState) -> Self {

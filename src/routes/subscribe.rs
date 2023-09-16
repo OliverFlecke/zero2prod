@@ -1,5 +1,6 @@
 use crate::{
     domain::{NewSubscriber, SubscriberEmail, SubscriberName},
+    email_client::EmailClient,
     state::AppState,
 };
 use axum::{extract::State, http::StatusCode, response::IntoResponse, routing::post, Form, Router};
@@ -41,6 +42,7 @@ pub fn create_router() -> Router<AppState> {
 )]
 async fn subscribe(
     State(pool): State<Arc<PgPool>>,
+    State(email_client): State<Arc<EmailClient>>,
     Form(form): Form<FormData>,
 ) -> impl IntoResponse {
     let new_subscriber = match form.try_into() {
@@ -48,10 +50,47 @@ async fn subscribe(
         Err(_) => return StatusCode::UNPROCESSABLE_ENTITY,
     };
 
-    match insert_subscriber(pool.as_ref(), &new_subscriber).await {
-        Ok(_) => StatusCode::OK,
-        Err(_) => StatusCode::INTERNAL_SERVER_ERROR,
+    if insert_subscriber(pool.as_ref(), &new_subscriber)
+        .await
+        .is_err()
+    {
+        return StatusCode::INTERNAL_SERVER_ERROR;
     }
+
+    if send_email_confirmation(email_client, new_subscriber)
+        .await
+        .is_err()
+    {
+        return StatusCode::INTERNAL_SERVER_ERROR;
+    }
+
+    StatusCode::OK
+}
+
+/// Send an email to the new subscriber with a link for them to confirm the
+/// subscription.
+#[tracing::instrument(
+    name = "Send a email confirmation to a new subscriber",
+    skip(email_client, new_subscriber)
+)]
+async fn send_email_confirmation(
+    email_client: Arc<EmailClient>,
+    new_subscriber: NewSubscriber,
+) -> Result<(), reqwest::Error> {
+    let confirmation_link = "https://there-is-no-such-domain.com/subscriptions/confirm";
+    let html_body = format!(
+        "Welcome to our newsletter!<br/> \
+                Click <a href=\"{confirmation_link}\">here</a> to confirm."
+    );
+    let text_body = format!(
+        "Welcome to our newsletter!\nVisit {confirmation_link} to confirm your subscription."
+    );
+
+    email_client
+        .send_email(new_subscriber.email, "Welcome!", &html_body, &text_body)
+        .await?;
+
+    Ok(())
 }
 
 /// Insert a new subscriber into the database.

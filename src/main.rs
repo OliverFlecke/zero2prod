@@ -6,7 +6,7 @@ async fn main() -> anyhow::Result<()> {
     telemetry::init_subscriber(telemetry::get_subscriber("zero2prod".to_string(), stdout));
 
     let configuration = get_configuration().expect("Failed to read configuration.");
-    App::build(configuration)?.run_until_stopped().await?;
+    App::build(configuration).await?.run_until_stopped().await?;
 
     Ok(())
 }

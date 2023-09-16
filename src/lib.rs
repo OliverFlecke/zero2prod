@@ -7,8 +7,7 @@ pub mod telemetry;
 
 use axum::{Router, Server};
 use configuration::Settings;
-use email_client::EmailClient;
-use sqlx::{postgres::PgPoolOptions, PgPool};
+use sqlx::postgres::PgPoolOptions;
 use state::AppState;
 use std::{net::TcpListener, time::Duration};
 use tower::ServiceBuilder;
@@ -22,12 +21,11 @@ use tracing::Level;
 #[derive(Debug)]
 pub struct App {
     listener: TcpListener,
-    db_pool: PgPool,
-    email_client: EmailClient,
+    router: Router,
 }
 
 impl App {
-    pub fn build(config: Settings) -> anyhow::Result<Self> {
+    pub async fn build(config: Settings) -> anyhow::Result<Self> {
         let listener = TcpListener::bind(config.application().address())?;
         let db_pool = PgPoolOptions::new()
             .acquire_timeout(Duration::from_secs(2))
@@ -38,21 +36,18 @@ impl App {
             .try_into()
             .expect("Failed to create email client");
 
-        Ok(Self {
-            listener,
-            db_pool,
-            email_client,
-        })
+        let app_state = AppState::create(db_pool, email_client).await;
+        let router = Self::build_router(&app_state);
+
+        Ok(Self { listener, router })
     }
 
     /// Run the server until it is stopped.
     pub async fn run_until_stopped(self) -> anyhow::Result<()> {
         tracing::info!("Server running at {}", self.listener.local_addr()?);
-        let app_state = AppState::create(self.db_pool, self.email_client).await;
-        let router = Self::build_router(&app_state);
 
         Server::from_tcp(self.listener)?
-            .serve(router.into_make_service())
+            .serve(self.router.into_make_service())
             .await?;
         Ok(())
     }

@@ -71,7 +71,7 @@ impl TryFrom<String> for Environment {
 pub struct Settings {
     pub database: DatabaseSettings,
     pub application: ApplicationSettings,
-    email_client: EmailClientSettings,
+    pub email_client: EmailClientSettings,
 }
 
 /// General application settings.
@@ -127,7 +127,7 @@ impl DatabaseSettings {
 #[derive(Debug, serde::Deserialize, Getters)]
 pub struct EmailClientSettings {
     #[getter(skip)]
-    base_url: String,
+    pub base_url: String,
     #[getter(skip)]
     sender: String,
     authorization_token: Secret<String>,

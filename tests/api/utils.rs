@@ -2,6 +2,7 @@ use derive_getters::Getters;
 use once_cell::sync::Lazy;
 use sqlx::{Connection, Executor, PgConnection, PgPool};
 use uuid::Uuid;
+use wiremock::MockServer;
 use zero2prod::{
     configuration::{get_configuration, DatabaseSettings},
     telemetry::{get_subscriber, init_subscriber},
@@ -18,22 +19,27 @@ static TRACING: Lazy<()> = Lazy::new(|| {
     };
 });
 
-#[derive(Debug, Getters)]
+#[derive(Getters)]
 pub struct TestApp {
-    pub address: String,
-    pub db_pool: PgPool,
+    address: String,
+    db_pool: PgPool,
+    email_server: MockServer,
 }
 
 /// Spawn a instance of the app on a random port.
 pub async fn spawn_app() -> anyhow::Result<TestApp> {
     Lazy::force(&TRACING);
+
+    let email_server = MockServer::start().await;
     let config = {
         let mut c = get_configuration().expect("Failed to read configuration");
 
-        // Generate a unique name for each DB.
+        // Generate a unique name for each DB
         c.database.name = Uuid::new_v4().to_string();
         // Make OS choose random port
         c.application.port = 0;
+        // Use the mock server as the email server API
+        c.email_client.base_url = email_server.uri();
 
         c
     };
@@ -41,14 +47,18 @@ pub async fn spawn_app() -> anyhow::Result<TestApp> {
     // Setup database
     let db_pool = configure_database(config.database()).await;
 
-    let app = App::build(config)?;
+    let app = App::build(config).await?;
     let application_port = app.port();
 
     // Start server
     let _ = tokio::spawn(app.run_until_stopped());
 
     let address = format!("http://127.0.0.1:{application_port}");
-    Ok(TestApp { address, db_pool })
+    Ok(TestApp {
+        address,
+        db_pool,
+        email_server,
+    })
 }
 
 pub async fn configure_database(config: &DatabaseSettings) -> PgPool {
