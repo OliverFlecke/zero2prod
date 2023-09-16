@@ -110,3 +110,23 @@ pub mod client {
         }
     }
 }
+
+pub mod mock {
+    use super::TestApp;
+    use http::StatusCode;
+    use wiremock::{
+        matchers::{method, path},
+        Mock, ResponseTemplate,
+    };
+
+    /// Utilitize to help mocking the email API.
+    impl TestApp {
+        pub async fn mock_send_email_endpoint_to_ok(&self) {
+            Mock::given(path("/email"))
+                .and(method("POST"))
+                .respond_with(ResponseTemplate::new(StatusCode::OK))
+                .mount(self.email_server())
+                .await;
+        }
+    }
+}
