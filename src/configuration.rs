@@ -67,7 +67,7 @@ impl TryFrom<String> for Environment {
 }
 
 /// Settings
-#[derive(Debug, serde::Deserialize, Getters)]
+#[derive(Debug, Clone, serde::Deserialize, Getters)]
 pub struct Settings {
     pub database: DatabaseSettings,
     pub application: ApplicationSettings,
@@ -75,11 +75,12 @@ pub struct Settings {
 }
 
 /// General application settings.
-#[derive(Debug, serde::Deserialize, Getters)]
+#[derive(Debug, Clone, serde::Deserialize, Getters)]
 pub struct ApplicationSettings {
     #[serde(deserialize_with = "deserialize_number_from_string")]
     pub port: u16,
-    host: String,
+    pub host: String,
+    pub base_url: String,
 }
 
 impl ApplicationSettings {
@@ -89,7 +90,7 @@ impl ApplicationSettings {
 }
 
 /// Settings for connecting to the database.
-#[derive(Debug, serde::Deserialize, Getters)]
+#[derive(Debug, Clone, serde::Deserialize, Getters)]
 pub struct DatabaseSettings {
     username: String,
     password: Secret<String>,
@@ -124,7 +125,7 @@ impl DatabaseSettings {
 }
 
 /// Settings for the email client.
-#[derive(Debug, serde::Deserialize, Getters)]
+#[derive(Debug, Clone, serde::Deserialize, Getters)]
 pub struct EmailClientSettings {
     #[getter(skip)]
     pub base_url: String,

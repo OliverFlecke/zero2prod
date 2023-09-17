@@ -36,7 +36,7 @@ impl App {
             .try_into()
             .expect("Failed to create email client");
 
-        let app_state = AppState::create(db_pool, email_client).await;
+        let app_state = AppState::create(config, db_pool, email_client).await;
         let router = Self::build_router(&app_state);
 
         Ok(Self { listener, router })

@@ -1,6 +1,7 @@
 use derive_getters::Getters;
 use once_cell::sync::Lazy;
 use sqlx::{Connection, Executor, PgConnection, PgPool};
+use url::Url;
 use uuid::Uuid;
 use wiremock::MockServer;
 use zero2prod::{
@@ -22,6 +23,7 @@ static TRACING: Lazy<()> = Lazy::new(|| {
 #[derive(Getters)]
 pub struct TestApp {
     address: String,
+    port: u16,
     db_pool: PgPool,
     email_server: MockServer,
 }
@@ -56,11 +58,14 @@ pub async fn spawn_app() -> TestApp {
     let address = format!("http://127.0.0.1:{application_port}");
     TestApp {
         address,
+        port: application_port,
         db_pool,
         email_server,
     }
 }
 
+/// Configure database for testing. This will ensure a database is created
+/// with the given db name from the config and that all migrations are applied.
 pub async fn configure_database(config: &DatabaseSettings) -> PgPool {
     let mut connection = PgConnection::connect_with(&config.without_db())
         .await
@@ -127,6 +132,40 @@ pub mod mock {
                 .respond_with(ResponseTemplate::new(StatusCode::OK))
                 .mount(self.email_server())
                 .await;
+        }
+    }
+}
+
+/// Confirmation links embedded in the request to the email API.
+pub struct ConfirmationLinks {
+    pub html: reqwest::Url,
+    pub plain_text: reqwest::Url,
+}
+
+impl TestApp {
+    /// Extract the confirmation links from an email request received through
+    /// the wiremock.
+    pub fn get_confirmation_links(&self, email_request: &wiremock::Request) -> ConfirmationLinks {
+        let body: serde_json::Value = serde_json::from_slice(&email_request.body).unwrap();
+        // Extract link from request fields
+        let get_link = |s: &str| {
+            let links: Vec<_> = linkify::LinkFinder::new()
+                .links(s)
+                .filter(|l| *l.kind() == linkify::LinkKind::Url)
+                .collect();
+            assert_eq!(links.len(), 1);
+            let raw_link = links[0].as_str().to_owned();
+            let mut confirmation_link = Url::parse(&raw_link).unwrap();
+            confirmation_link.set_port(Some(*self.port())).unwrap();
+            // Verify link is pointing to localhost
+            assert_eq!(confirmation_link.host_str().unwrap(), "127.0.0.1");
+
+            confirmation_link
+        };
+
+        ConfirmationLinks {
+            html: get_link(&body["HtmlBody"].as_str().unwrap()),
+            plain_text: get_link(&body["TextBody"].as_str().unwrap()),
         }
     }
 }

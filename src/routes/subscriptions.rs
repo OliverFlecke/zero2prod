@@ -3,7 +3,7 @@ mod subscriptions_confirm;
 use crate::{
     domain::{NewSubscriber, SubscriberEmail, SubscriberName},
     email_client::EmailClient,
-    state::AppState,
+    state::{AppState, ApplicationBaseUrl},
 };
 use axum::{
     extract::State,
@@ -51,6 +51,7 @@ pub fn create_router() -> Router<AppState> {
     )
 )]
 async fn subscribe(
+    State(base_url): State<Arc<ApplicationBaseUrl>>,
     State(pool): State<Arc<PgPool>>,
     State(email_client): State<Arc<EmailClient>>,
     Form(form): Form<FormData>,
@@ -67,7 +68,7 @@ async fn subscribe(
         return StatusCode::INTERNAL_SERVER_ERROR;
     }
 
-    if send_email_confirmation(email_client, new_subscriber)
+    if send_email_confirmation(email_client, new_subscriber, &base_url.0)
         .await
         .is_err()
     {
@@ -81,13 +82,14 @@ async fn subscribe(
 /// subscription.
 #[tracing::instrument(
     name = "Send a email confirmation to a new subscriber",
-    skip(email_client, new_subscriber)
+    skip(email_client, new_subscriber, base_url)
 )]
 async fn send_email_confirmation(
     email_client: Arc<EmailClient>,
     new_subscriber: NewSubscriber,
+    base_url: &str,
 ) -> Result<(), reqwest::Error> {
-    let confirmation_link = "https://there-is-no-such-domain.com/subscriptions/confirm";
+    let confirmation_link = format!("{base_url}/subscriptions/confirm?subscription_token=mytoken");
     let html_body = format!(
         "Welcome to our newsletter!<br/> \
                 Click <a href=\"{confirmation_link}\">here</a> to confirm."
