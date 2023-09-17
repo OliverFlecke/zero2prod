@@ -63,7 +63,7 @@ impl App {
             .nest("/health", routes::health::create_router())
             .nest(
                 "/subscriptions",
-                routes::subscribe::create_router().with_state(app_state.clone()),
+                routes::subscriptions::create_router().with_state(app_state.clone()),
             )
             .layer(
                 ServiceBuilder::new()

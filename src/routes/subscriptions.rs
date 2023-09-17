@@ -1,9 +1,17 @@
+mod subscriptions_confirm;
+
 use crate::{
     domain::{NewSubscriber, SubscriberEmail, SubscriberName},
     email_client::EmailClient,
     state::AppState,
 };
-use axum::{extract::State, http::StatusCode, response::IntoResponse, routing::post, Form, Router};
+use axum::{
+    extract::State,
+    http::StatusCode,
+    response::IntoResponse,
+    routing::{get, post},
+    Form, Router,
+};
 use chrono::Utc;
 use sqlx::PgPool;
 use std::sync::Arc;
@@ -28,7 +36,9 @@ impl TryFrom<FormData> for NewSubscriber {
 
 /// Create a router to serve endpoints.
 pub fn create_router() -> Router<AppState> {
-    Router::new().route("/", post(subscribe))
+    Router::new()
+        .route("/", post(subscribe))
+        .route("/confirm", get(subscriptions_confirm::confirm))
 }
 
 /// Subscribe to the newsletter with an email and name.

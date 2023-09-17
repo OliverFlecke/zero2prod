@@ -27,7 +27,7 @@ pub struct TestApp {
 }
 
 /// Spawn a instance of the app on a random port.
-pub async fn spawn_app() -> anyhow::Result<TestApp> {
+pub async fn spawn_app() -> TestApp {
     Lazy::force(&TRACING);
 
     let email_server = MockServer::start().await;
@@ -47,18 +47,18 @@ pub async fn spawn_app() -> anyhow::Result<TestApp> {
     // Setup database
     let db_pool = configure_database(config.database()).await;
 
-    let app = App::build(config).await?;
+    let app = App::build(config).await.expect("Failed to build app");
     let application_port = app.port();
 
     // Start server
     let _ = tokio::spawn(app.run_until_stopped());
 
     let address = format!("http://127.0.0.1:{application_port}");
-    Ok(TestApp {
+    TestApp {
         address,
         db_pool,
         email_server,
-    })
+    }
 }
 
 pub async fn configure_database(config: &DatabaseSettings) -> PgPool {

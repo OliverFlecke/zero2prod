@@ -1,3 +1,4 @@
 mod health;
-mod subscribe;
+mod subscriptions;
+mod subscriptions_confirm;
 pub mod utils;

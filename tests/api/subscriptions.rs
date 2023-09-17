@@ -10,7 +10,7 @@ use wiremock::{
 #[tokio::test]
 async fn subscribe_returns_a_200_for_valid_form_data() {
     // Arrange
-    let app = spawn_app().await.expect("failed to create app");
+    let app = spawn_app().await;
     app.mock_send_email_endpoint_to_ok().await;
 
     // Act
@@ -24,7 +24,7 @@ async fn subscribe_returns_a_200_for_valid_form_data() {
 #[tokio::test]
 async fn subscribe_persists_the_new_subscriber() {
     // Arrange
-    let app = spawn_app().await.expect("failed to create app");
+    let app = spawn_app().await;
     app.mock_send_email_endpoint_to_ok().await;
 
     // Act
@@ -51,7 +51,7 @@ async fn subscribe_returns_a_422_when_data_is_missing(
     #[case] error_message: String,
 ) {
     // Arrange
-    let app = spawn_app().await.expect("failed to start app");
+    let app = spawn_app().await;
 
     // Act
     let response = app.post_subscriptions(body).await;
@@ -76,7 +76,7 @@ async fn subscribe_returns_a_422_when_fields_are_present_but_empty(
     #[case] description: String,
 ) {
     // Arrange
-    let app = spawn_app().await.expect("Failed to start app");
+    let app = spawn_app().await;
 
     // Act
     let response = app.post_subscriptions(body).await;
@@ -94,7 +94,7 @@ async fn subscribe_returns_a_422_when_fields_are_present_but_empty(
 #[tokio::test]
 async fn subscribe_sends_a_confirmation_email_for_valid_data() {
     // Arrange
-    let app = spawn_app().await.unwrap();
+    let app = spawn_app().await;
     let body = "name=le%20guin&email=ursula_le_guin%40gmail.com";
 
     Mock::given(path("/email"))
@@ -114,7 +114,7 @@ async fn subscribe_sends_a_confirmation_email_for_valid_data() {
 #[tokio::test]
 async fn subscribe_sends_a_confirmation_email_with_a_link() {
     // Arrange
-    let app = spawn_app().await.unwrap();
+    let app = spawn_app().await;
     let body = "name=le%20guin&email=ursula_le_guin%40gmail.com";
 
     Mock::given(path("/email"))
