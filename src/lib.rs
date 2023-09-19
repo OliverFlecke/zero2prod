@@ -1,6 +1,7 @@
 pub mod configuration;
 pub mod domain;
 pub mod email_client;
+pub mod error;
 mod routes;
 mod state;
 pub mod telemetry;

@@ -63,3 +63,51 @@ async fn clicking_on_the_confirmation_link_confirms_a_subscriber() {
     assert_eq!(saved.name, "le guin");
     assert_eq!(saved.status, "confirmed");
 }
+
+#[tokio::test]
+async fn confirm_without_a_token_is_unauthorized() {
+    // Arrange
+    let app = spawn_app().await;
+    let body = "name=le%20guin&email=ursula_le_guin%40gmail.com";
+
+    app.mock_send_email_endpoint_to_ok().await;
+    app.post_subscriptions(body.into()).await;
+    let email_request = &app.email_server().received_requests().await.unwrap()[0];
+    let confirmation_link = app.get_confirmation_links(email_request);
+
+    // Delete the token
+    sqlx::query!("DELETE FROM subscription_tokens;",)
+        .execute(app.db_pool())
+        .await
+        .unwrap();
+
+    // Act
+    let response = reqwest::get(confirmation_link.html).await.unwrap();
+
+    // Assert
+    assert_eq!(response.status(), StatusCode::UNAUTHORIZED);
+}
+
+#[tokio::test]
+async fn confirm_fails_if_there_is_a_fatal_database_error() {
+    // Arrange
+    let app = spawn_app().await;
+    let body = "name=le%20guin&email=ursula_le_guin%40gmail.com";
+
+    app.mock_send_email_endpoint_to_ok().await;
+    app.post_subscriptions(body.into()).await;
+    let email_request = &app.email_server().received_requests().await.unwrap()[0];
+    let confirmation_link = app.get_confirmation_links(email_request);
+
+    // Delete the token
+    sqlx::query!("ALTER TABLE subscriptions DROP COLUMN status;",)
+        .execute(app.db_pool())
+        .await
+        .unwrap();
+
+    // Act
+    let response = reqwest::get(confirmation_link.html).await.unwrap();
+
+    // Assert
+    assert_eq!(response.status(), StatusCode::INTERNAL_SERVER_ERROR);
+}

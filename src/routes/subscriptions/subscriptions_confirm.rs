@@ -1,5 +1,8 @@
 use crate::state::ApplicationBaseUrl;
-use axum::extract::{Query, State};
+use axum::{
+    extract::{Query, State},
+    response::IntoResponse,
+};
 use http::StatusCode;
 use sqlx::PgPool;
 use std::sync::Arc;
@@ -11,24 +14,25 @@ pub struct Parameters {
 }
 
 /// Endpoint for user to hit when confirming their subscription to the newsletter.
-#[tracing::instrument(name = "Confirm a pending subscriber")]
+#[tracing::instrument(name = "Confirm a pending subscriber", skip(db_pool))]
 pub async fn confirm(
     State(host): State<Arc<ApplicationBaseUrl>>,
     State(db_pool): State<Arc<PgPool>>,
     Query(parameters): Query<Parameters>,
-) -> StatusCode {
-    let id = match get_subscriber_id_from_token(&db_pool, &parameters.subscription_token).await {
-        Ok(id) => id,
-        Err(_) => return StatusCode::INTERNAL_SERVER_ERROR,
+) -> Result<StatusCode, ConfirmError> {
+    let Some(subscriber_id) =
+        get_subscriber_id_from_token(&db_pool, &parameters.subscription_token).await?
+    else {
+        return Err(ConfirmError::SubscriberNotFoundForToken(
+            parameters.subscription_token,
+        ));
     };
 
-    match id {
-        None => StatusCode::UNAUTHORIZED,
-        Some(subscriber_id) => match confirm_subscriber(&db_pool, subscriber_id).await {
-            Ok(_) => StatusCode::OK,
-            Err(_) => StatusCode::INTERNAL_SERVER_ERROR,
-        },
-    }
+    tracing::info!("Subscriber found: {subscriber_id}");
+    confirm_subscriber(&db_pool, subscriber_id)
+        .await
+        .map_err(ConfirmError::FailedToConfirmSubscriber)?;
+    Ok(StatusCode::OK)
 }
 
 /// Update the status of the given `subscriber_id` to be confirmed.
@@ -39,11 +43,10 @@ pub async fn confirm_subscriber(pool: &PgPool, subscriber_id: Uuid) -> Result<()
         subscriber_id,
     )
     .execute(pool)
-    .await
-    .map_err(|e| {
-        tracing::error!("Failed to execute query: {e:?}");
-        e
-    })?;
+    .await?;
+
+    tracing::info!("Subscriber confirmed");
+
     Ok(())
 }
 
@@ -53,7 +56,7 @@ pub async fn confirm_subscriber(pool: &PgPool, subscriber_id: Uuid) -> Result<()
 pub async fn get_subscriber_id_from_token(
     pool: &PgPool,
     subscription_token: &str,
-) -> Result<Option<Uuid>, sqlx::Error> {
+) -> Result<Option<Uuid>, ConfirmError> {
     let result = sqlx::query!(
         "SELECT subscriber_id FROM subscription_tokens \
         WHERE subscription_token = $1",
@@ -61,10 +64,39 @@ pub async fn get_subscriber_id_from_token(
     )
     .fetch_optional(pool)
     .await
-    .map_err(|e| {
-        tracing::error!("Failed to execute query: {e:?}");
-        e
-    })?;
+    .map_err(ConfirmError::FailedToGetToken)?;
 
     Ok(result.map(|x| x.subscriber_id))
+}
+
+/// Errors that can occure during confirmation of a subscriber.
+#[derive(thiserror::Error)]
+pub enum ConfirmError {
+    #[error("Failed to retreive token")]
+    FailedToGetToken(#[source] sqlx::Error),
+    #[error("Failed to confirm subscriber")]
+    FailedToConfirmSubscriber(#[source] sqlx::Error),
+    #[error("Subscriber not found for token: {0}")]
+    SubscriberNotFoundForToken(String),
+}
+
+impl std::fmt::Debug for ConfirmError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        crate::error::error_chain_fmt(self, f)
+    }
+}
+
+impl IntoResponse for ConfirmError {
+    fn into_response(self) -> axum::response::Response {
+        tracing::error!("{self:?}");
+
+        let status_code = match self {
+            ConfirmError::SubscriberNotFoundForToken(_) => StatusCode::UNAUTHORIZED,
+            ConfirmError::FailedToConfirmSubscriber(_) | ConfirmError::FailedToGetToken(_) => {
+                StatusCode::INTERNAL_SERVER_ERROR
+            }
+        };
+
+        (status_code, self.to_string()).into_response()
+    }
 }
