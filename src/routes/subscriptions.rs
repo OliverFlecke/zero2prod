@@ -169,6 +169,7 @@ fn generate_subscription_token() -> String {
 }
 
 /// Errors that can happen during a call to `subscribe`.
+#[allow(clippy::enum_variant_names)]
 #[derive(thiserror::Error)]
 pub enum SubscribeError {
     #[error("{0}")]
