@@ -113,6 +113,16 @@ pub mod client {
                 .await
                 .expect("Failed to execute request.")
         }
+
+        /// Send a POST request to the newsletter endpoint.
+        pub async fn post_newsletter(&self, body: serde_json::Value) -> reqwest::Response {
+            reqwest::Client::new()
+                .post(&format!("{}/newsletters", self.address()))
+                .json(&body)
+                .send()
+                .await
+                .expect("Failed to execute request")
+        }
     }
 }
 

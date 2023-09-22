@@ -66,6 +66,10 @@ impl App {
                 "/subscriptions",
                 routes::subscriptions::create_router().with_state(app_state.clone()),
             )
+            .nest(
+                "/newsletters",
+                routes::newsletters::create_router().with_state(app_state.clone()),
+            )
             .layer(
                 ServiceBuilder::new()
                     .set_x_request_id(MakeRequestUuid)
