@@ -80,12 +80,6 @@ pub enum ConfirmError {
     SubscriberNotFoundForToken(String),
 }
 
-impl std::fmt::Debug for ConfirmError {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        crate::error::error_chain_fmt(self, f)
-    }
-}
-
 impl IntoResponse for ConfirmError {
     fn into_response(self) -> axum::response::Response {
         tracing::error!("{self:?}");

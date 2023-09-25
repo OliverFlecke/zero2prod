@@ -1,11 +1,12 @@
 use derive_getters::Getters;
 use once_cell::sync::Lazy;
-use sqlx::{Connection, Executor, PgConnection, PgPool};
+use sha3::Digest;
+use sqlx::PgPool;
 use url::Url;
 use uuid::Uuid;
 use wiremock::MockServer;
 use zero2prod::{
-    configuration::{get_configuration, DatabaseSettings},
+    configuration::get_configuration,
     telemetry::{get_subscriber, init_subscriber},
     App,
 };
@@ -26,6 +27,7 @@ pub struct TestApp {
     port: u16,
     db_pool: PgPool,
     email_server: MockServer,
+    test_user: TestUser,
 }
 
 /// Spawn a instance of the app on a random port.
@@ -47,7 +49,7 @@ pub async fn spawn_app() -> TestApp {
     };
 
     // Setup database
-    let db_pool = configure_database(config.database()).await;
+    let db_pool = db::configure_database(config.database()).await;
 
     let app = App::build(config).await.expect("Failed to build app");
     let application_port = app.port();
@@ -56,42 +58,84 @@ pub async fn spawn_app() -> TestApp {
     let _ = tokio::spawn(app.run_until_stopped());
 
     let address = format!("http://127.0.0.1:{application_port}");
-    TestApp {
+    let app = TestApp {
         address,
         port: application_port,
         db_pool,
         email_server,
+        test_user: TestUser::generate(),
+    };
+
+    app.test_user.store(app.db_pool()).await;
+
+    app
+}
+
+#[derive(Getters)]
+pub struct TestUser {
+    user_id: Uuid,
+    username: String,
+    password: String,
+}
+
+impl TestUser {
+    pub fn generate() -> Self {
+        Self {
+            user_id: Uuid::new_v4(),
+            username: Uuid::new_v4().to_string(),
+            password: Uuid::new_v4().to_string(),
+        }
+    }
+
+    /// Add a test user to the database.
+    pub async fn store(&self, pool: &PgPool) {
+        let password_hash = sha3::Sha3_256::digest(self.password.as_bytes());
+        let password_hash = format!("{:x}", password_hash);
+
+        sqlx::query!(
+            "INSERT INTO users (user_id, username, password_hash) VALUES ($1, $2, $3)",
+            self.user_id,
+            self.username,
+            password_hash,
+        )
+        .execute(pool)
+        .await
+        .expect("Failed to create test users");
     }
 }
 
-/// Configure database for testing. This will ensure a database is created
-/// with the given db name from the config and that all migrations are applied.
-pub async fn configure_database(config: &DatabaseSettings) -> PgPool {
-    let mut connection = PgConnection::connect_with(&config.without_db())
-        .await
-        .expect("Failed to connect to Postgres");
+mod db {
+    use sqlx::{Connection, Executor, PgConnection, PgPool};
+    use zero2prod::configuration::DatabaseSettings;
 
-    connection
-        .execute(format!(r#"CREATE DATABASE "{}";"#, config.name()).as_str())
-        .await
-        .expect("Failed to create database.");
+    /// Configure database for testing. This will ensure a database is created
+    /// with the given db name from the config and that all migrations are applied.
+    pub async fn configure_database(config: &DatabaseSettings) -> PgPool {
+        let mut connection = PgConnection::connect_with(&config.without_db())
+            .await
+            .expect("Failed to connect to Postgres");
 
-    // Migrate the database
-    let db_pool = PgPool::connect_with(config.with_db())
-        .await
-        .expect("Failed to connect to Postgres");
-    sqlx::migrate!("./migrations")
-        .run(&db_pool)
-        .await
-        .expect("Failed to migrate the database");
+        connection
+            .execute(format!(r#"CREATE DATABASE "{}";"#, config.name()).as_str())
+            .await
+            .expect("Failed to create database.");
 
-    db_pool
+        // Migrate the database
+        let db_pool = PgPool::connect_with(config.with_db())
+            .await
+            .expect("Failed to connect to Postgres");
+        sqlx::migrate!("./migrations")
+            .run(&db_pool)
+            .await
+            .expect("Failed to migrate the database");
+
+        db_pool
+    }
 }
 
 pub mod client {
     use super::TestApp;
     use reqwest::Client;
-    use uuid::Uuid;
 
     /// Implemenation of a client for the services API.
     impl TestApp {
@@ -120,7 +164,10 @@ pub mod client {
             reqwest::Client::new()
                 .post(&format!("{}/newsletters", self.address()))
                 .json(&body)
-                .basic_auth(Uuid::new_v4().to_string(), Some(Uuid::new_v4().to_string()))
+                .basic_auth(
+                    self.test_user().username(),
+                    Some(self.test_user().password()),
+                )
                 .send()
                 .await
                 .expect("Failed to execute request")

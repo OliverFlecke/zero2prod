@@ -1,4 +1,4 @@
-mod subscriptions_confirm;
+pub(crate) mod subscriptions_confirm;
 
 use crate::{
     domain::{NewSubscriber, SubscriberEmail, SubscriberName},
@@ -184,12 +184,6 @@ pub enum SubscribeError {
     TransactionCommitError(#[source] sqlx::Error),
     #[error("Failed to send a confirmation email")]
     SendEmailError(#[from] reqwest::Error),
-}
-
-impl std::fmt::Debug for SubscribeError {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        crate::error::error_chain_fmt(self, f)
-    }
 }
 
 impl IntoResponse for SubscribeError {
