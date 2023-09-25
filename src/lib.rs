@@ -60,34 +60,24 @@ impl App {
 
     /// Builder the router for the application.
     fn build_router(app_state: &AppState) -> Router {
-        Router::new()
-            .nest("/health", routes::health::create_router())
-            .nest(
-                "/subscriptions",
-                routes::subscriptions::create_router().with_state(app_state.clone()),
-            )
-            .nest(
-                "/newsletters",
-                routes::newsletters::create_router().with_state(app_state.clone()),
-            )
-            .layer(
-                ServiceBuilder::new()
-                    .set_x_request_id(MakeRequestUuid)
-                    .layer(
-                        TraceLayer::new_for_http()
-                            .make_span_with(
-                                DefaultMakeSpan::new()
-                                    .level(Level::INFO)
-                                    .include_headers(true),
-                            )
-                            .on_request(DefaultOnRequest::new().level(Level::INFO))
-                            .on_response(
-                                DefaultOnResponse::new()
-                                    .level(Level::INFO)
-                                    .include_headers(true),
-                            ),
-                    )
-                    .propagate_x_request_id(),
-            )
+        routes::build_router(app_state).layer(
+            ServiceBuilder::new()
+                .set_x_request_id(MakeRequestUuid)
+                .layer(
+                    TraceLayer::new_for_http()
+                        .make_span_with(
+                            DefaultMakeSpan::new()
+                                .level(Level::INFO)
+                                .include_headers(true),
+                        )
+                        .on_request(DefaultOnRequest::new().level(Level::INFO))
+                        .on_response(
+                            DefaultOnResponse::new()
+                                .level(Level::INFO)
+                                .include_headers(true),
+                        ),
+                )
+                .propagate_x_request_id(),
+        )
     }
 }
