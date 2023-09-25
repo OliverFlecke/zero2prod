@@ -91,6 +91,7 @@ pub async fn configure_database(config: &DatabaseSettings) -> PgPool {
 pub mod client {
     use super::TestApp;
     use reqwest::Client;
+    use uuid::Uuid;
 
     /// Implemenation of a client for the services API.
     impl TestApp {
@@ -119,6 +120,7 @@ pub mod client {
             reqwest::Client::new()
                 .post(&format!("{}/newsletters", self.address()))
                 .json(&body)
+                .basic_auth(Uuid::new_v4().to_string(), Some(Uuid::new_v4().to_string()))
                 .send()
                 .await
                 .expect("Failed to execute request")
