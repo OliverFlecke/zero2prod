@@ -1,6 +1,6 @@
+use argon2::{password_hash::SaltString, Argon2, PasswordHasher};
 use derive_getters::Getters;
 use once_cell::sync::Lazy;
-use sha3::Digest;
 use sqlx::PgPool;
 use url::Url;
 use uuid::Uuid;
@@ -89,8 +89,11 @@ impl TestUser {
 
     /// Add a test user to the database.
     pub async fn store(&self, pool: &PgPool) {
-        let password_hash = sha3::Sha3_256::digest(self.password.as_bytes());
-        let password_hash = format!("{:x}", password_hash);
+        let salt = SaltString::generate(&mut rand::thread_rng());
+        let password_hash = Argon2::default()
+            .hash_password(self.password.as_bytes(), &salt)
+            .unwrap()
+            .to_string();
 
         sqlx::query!(
             "INSERT INTO users (user_id, username, password_hash) VALUES ($1, $2, $3)",

@@ -126,6 +126,7 @@ impl IntoResponse for PublishNewsletterError {
 
 // Authentication
 pub mod auth {
+    use argon2::{Argon2, PasswordHash, PasswordVerifier};
     use axum::{
         async_trait,
         body::Full,
@@ -137,8 +138,7 @@ pub mod auth {
         header::{self, ToStrError},
         StatusCode,
     };
-    use secrecy::Secret;
-    use sha3::Digest;
+    use secrecy::{ExposeSecret, Secret};
     use sqlx::PgPool;
     use std::string::FromUtf8Error;
 
@@ -153,22 +153,30 @@ pub mod auth {
             self,
             pool: &PgPool,
         ) -> Result<uuid::Uuid, CredentialsError> {
-            use secrecy::ExposeSecret;
-            let password_hash = sha3::Sha3_256::digest(self.password.expose_secret().as_bytes());
-            let password_hash = format!("{:x}", password_hash);
-
-            let user_id: Option<_> = sqlx::query!(
-                r#"SELECT user_id FROM users WHERE username = $1 AND password_hash = $2"#,
+            let row: Option<_> = sqlx::query!(
+                r#"SELECT user_id, password_hash FROM users WHERE username = $1"#,
                 self.username,
-                password_hash,
             )
             .fetch_optional(pool)
             .await
             .map_err(CredentialsError::DbError)?;
 
-            user_id
-                .map(|r| r.user_id)
-                .ok_or(CredentialsError::InvalidUsernameOrPassword)
+            let (expected_password_hash, user_id) = match row {
+                Some(row) => (row.password_hash, row.user_id),
+                None => return Err(CredentialsError::UnknownUsername(self.username.to_owned())),
+            };
+
+            let expected_password_hash = PasswordHash::new(&expected_password_hash)
+                .map_err(CredentialsError::FailedToGetExpectedHash)?;
+
+            Argon2::default()
+                .verify_password(
+                    self.password.expose_secret().as_bytes(),
+                    &expected_password_hash,
+                )
+                .map_err(CredentialsError::InvalidPassword)?;
+
+            Ok(user_id)
         }
     }
 
@@ -249,7 +257,11 @@ pub mod auth {
     pub enum CredentialsError {
         #[error("Unexpected database error")]
         DbError(#[source] sqlx::Error),
-        #[error("Invalid username or password")]
-        InvalidUsernameOrPassword,
+        #[error("Unknown username: '{0}'")]
+        UnknownUsername(String),
+        #[error("Invalid password")]
+        InvalidPassword(#[source] argon2::password_hash::Error),
+        #[error("Failed to create expected hash")]
+        FailedToGetExpectedHash(#[source] argon2::password_hash::Error),
     }
 }
