@@ -1,4 +1,4 @@
-use self::auth::{Credentials, CredentialsError};
+use self::auth::{build_auth_error, Credentials, CredentialsError};
 use crate::{domain::SubscriberEmail, email_client::EmailClient, state::AppState};
 use axum::{
     extract::State,
@@ -113,19 +113,18 @@ pub enum PublishNewsletterError {
 
 impl IntoResponse for PublishNewsletterError {
     fn into_response(self) -> Response {
-        let status_code = match self {
+        match self {
             Self::FailedToGetConfirmedSubscribers(_) | Self::FailedToSendEmail(_, _) => {
-                StatusCode::INTERNAL_SERVER_ERROR
+                (StatusCode::INTERNAL_SERVER_ERROR, self.to_string()).into_response()
             }
-            Self::AuthError(_) => StatusCode::UNAUTHORIZED,
-        };
-
-        (status_code, self.to_string()).into_response()
+            Self::AuthError(_) => build_auth_error(self.to_string()),
+        }
     }
 }
 
 // Authentication
 pub mod auth {
+    use anyhow::Context;
     use argon2::{Argon2, PasswordHash, PasswordVerifier};
     use axum::{
         async_trait,
@@ -142,6 +141,8 @@ pub mod auth {
     use sqlx::PgPool;
     use std::string::FromUtf8Error;
 
+    use crate::telemetry::spawn_blocking_with_tracing;
+
     #[derive(Debug)]
     pub struct Credentials {
         username: String,
@@ -149,35 +150,73 @@ pub mod auth {
     }
 
     impl Credentials {
+        #[tracing::instrument(name = "Validate credentials", skip(self, pool))]
         pub async fn validate_credentials(
             self,
             pool: &PgPool,
         ) -> Result<uuid::Uuid, CredentialsError> {
-            let row: Option<_> = sqlx::query!(
-                r#"SELECT user_id, password_hash FROM users WHERE username = $1"#,
-                self.username,
-            )
-            .fetch_optional(pool)
+            let mut user_id = None;
+            let mut expected_password_hash = Secret::new(
+                "$argon2id$v=19$m=15000,t=2,p=1$\
+        gZiV/M1gPc22ElAH/Jh1Hw$\
+        CWOrkoo7oJBQ/iyh7uJ0LO2aLEfrHwTWllSAxT0zRno"
+                    .to_string(),
+            );
+
+            if let Some((stored_user_id, stored_password_hash)) =
+                get_stored_credentials(&self.username, pool).await?
+            {
+                user_id = Some(stored_user_id);
+                expected_password_hash = stored_password_hash;
+            }
+
+            spawn_blocking_with_tracing(move || {
+                verify_password_hash(expected_password_hash, self.password)
+            })
             .await
-            .map_err(CredentialsError::DbError)?;
+            .context("Failed to spawn blocking task")
+            .map_err(CredentialsError::UnexpectedError)??;
 
-            let (expected_password_hash, user_id) = match row {
-                Some(row) => (row.password_hash, row.user_id),
-                None => return Err(CredentialsError::UnknownUsername(self.username.to_owned())),
-            };
-
-            let expected_password_hash = PasswordHash::new(&expected_password_hash)
-                .map_err(CredentialsError::FailedToGetExpectedHash)?;
-
-            Argon2::default()
-                .verify_password(
-                    self.password.expose_secret().as_bytes(),
-                    &expected_password_hash,
-                )
-                .map_err(CredentialsError::InvalidPassword)?;
-
-            Ok(user_id)
+            user_id.ok_or_else(|| CredentialsError::UnknownUsername(self.username))
         }
+    }
+
+    #[tracing::instrument(
+        name = "Verify password hash",
+        skip(expected_password_hash, password_candidate)
+    )]
+    fn verify_password_hash(
+        expected_password_hash: Secret<String>,
+        password_candidate: Secret<String>,
+    ) -> Result<(), CredentialsError> {
+        let expected_password_hash = PasswordHash::new(expected_password_hash.expose_secret())
+            .map_err(CredentialsError::FailedToGetExpectedHash)?;
+
+        Argon2::default()
+            .verify_password(
+                password_candidate.expose_secret().as_bytes(),
+                &expected_password_hash,
+            )
+            .map_err(CredentialsError::InvalidPassword)?;
+
+        Ok(())
+    }
+
+    /// Get the stored user id and its corresponding password hash from the
+    /// database.
+    #[tracing::instrument(name = "Get stored credentials", skip(username, pool))]
+    async fn get_stored_credentials(
+        username: &str,
+        pool: &PgPool,
+    ) -> Result<Option<(uuid::Uuid, Secret<String>)>, CredentialsError> {
+        Ok(sqlx::query!(
+            r#"SELECT user_id, password_hash FROM users WHERE username = $1"#,
+            username,
+        )
+        .fetch_optional(pool)
+        .await
+        .map_err(CredentialsError::DbError)?
+        .map(|row| (row.user_id, Secret::new(row.password_hash))))
     }
 
     #[async_trait]
@@ -224,6 +263,15 @@ pub mod auth {
         }
     }
 
+    pub fn build_auth_error(body: String) -> Response {
+        Response::builder()
+            .header(header::WWW_AUTHENTICATE, r#"Basic realm="publish""#)
+            .status(StatusCode::UNAUTHORIZED)
+            .body(Full::from(body))
+            .unwrap()
+            .into_response()
+    }
+
     #[derive(thiserror::Error)]
     pub enum BasicAuthError {
         #[error("The 'Authorization' header was missing")]
@@ -244,12 +292,7 @@ pub mod auth {
 
     impl IntoResponse for BasicAuthError {
         fn into_response(self) -> Response {
-            Response::builder()
-                .header(header::WWW_AUTHENTICATE, r#"Basic realm="publish""#)
-                .status(StatusCode::UNAUTHORIZED)
-                .body(Full::from(self.to_string()))
-                .unwrap()
-                .into_response()
+            build_auth_error(self.to_string())
         }
     }
 
@@ -263,5 +306,7 @@ pub mod auth {
         InvalidPassword(#[source] argon2::password_hash::Error),
         #[error("Failed to create expected hash")]
         FailedToGetExpectedHash(#[source] argon2::password_hash::Error),
+        #[error("Unexpected error")]
+        UnexpectedError(#[source] anyhow::Error),
     }
 }
