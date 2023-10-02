@@ -13,7 +13,7 @@ pub fn create_router() -> Router<AppState> {
 }
 
 async fn home_handler() -> Result<Response, StatusCode> {
-    let body = HomeTemplate::default();
+    let body = HomeTemplate;
 
     Ok(Response::builder()
         .header(header::CONTENT_TYPE, "text/html")
