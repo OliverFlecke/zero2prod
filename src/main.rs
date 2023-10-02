@@ -6,7 +6,7 @@ async fn main() -> anyhow::Result<()> {
     // Create a tracing layer with the configured tracer
     let service_name = "zero2prod".to_string();
     let subscriber = telemetry::get_subscriber(service_name, stdout);
-    let subscriber = telemetry::setup_optl(subscriber);
+    // let subscriber = telemetry::setup_optl(subscriber);
 
     telemetry::init_subscriber(subscriber);
 

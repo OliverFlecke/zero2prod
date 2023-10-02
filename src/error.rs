@@ -1,9 +1,10 @@
-use crate::routes::{
-    newsletters::{
-        auth::{BasicAuthError, CredentialsError},
-        PublishNewsletterError,
+use crate::{
+    authorization::{BasicAuthError, CredentialsError},
+    routes::{
+        login::post::LoginError,
+        newsletters::PublishNewsletterError,
+        subscriptions::{subscriptions_confirm::ConfirmError, SubscribeError},
     },
-    subscriptions::{subscriptions_confirm::ConfirmError, SubscribeError},
 };
 use duplicate::duplicate_item;
 
@@ -29,6 +30,7 @@ pub fn error_chain_fmt(
     [ SubscribeError ];
     [ ConfirmError ];
     [ CredentialsError ];
+    [ LoginError ];
 )]
 impl std::fmt::Debug for error_type {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
