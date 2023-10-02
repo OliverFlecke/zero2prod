@@ -1,6 +1,8 @@
 use argon2::{password_hash::SaltString, Algorithm, Argon2, Params, PasswordHasher, Version};
 use derive_getters::Getters;
+use http::StatusCode;
 use once_cell::sync::Lazy;
+use pretty_assertions::assert_eq;
 use sqlx::PgPool;
 use url::Url;
 use uuid::Uuid;
@@ -28,6 +30,7 @@ pub struct TestApp {
     db_pool: PgPool,
     email_server: MockServer,
     test_user: TestUser,
+    api_client: reqwest::Client,
 }
 
 /// Spawn a instance of the app on a random port.
@@ -58,12 +61,20 @@ pub async fn spawn_app() -> TestApp {
     let _ = tokio::spawn(app.run_until_stopped());
 
     let address = format!("http://127.0.0.1:{application_port}");
+
+    let api_client = reqwest::Client::builder()
+        .redirect(reqwest::redirect::Policy::none())
+        .cookie_store(true)
+        .build()
+        .unwrap();
+
     let app = TestApp {
         address,
         port: application_port,
         db_pool,
         email_server,
         test_user: TestUser::generate(),
+        api_client,
     };
 
     app.test_user.store(app.db_pool()).await;
@@ -142,13 +153,12 @@ mod db {
 
 pub mod client {
     use super::TestApp;
-    use reqwest::Client;
 
     /// Implemenation of a client for the services API.
     impl TestApp {
         /// Send a request to the health check endpoint.
         pub async fn health_check(&self) -> reqwest::Response {
-            Client::new()
+            self.api_client()
                 .get(format!("{}/health", self.address))
                 .send()
                 .await
@@ -157,7 +167,7 @@ pub mod client {
 
         /// Send a POST request to the subscription endpoint.
         pub async fn post_subscriptions(&self, body: String) -> reqwest::Response {
-            Client::new()
+            self.api_client()
                 .post(&format!("{}/subscriptions", self.address))
                 .header("Content-Type", "application/x-www-form-urlencoded")
                 .body(body)
@@ -168,7 +178,7 @@ pub mod client {
 
         /// Send a POST request to the newsletter endpoint.
         pub async fn post_newsletter(&self, body: serde_json::Value) -> reqwest::Response {
-            reqwest::Client::new()
+            self.api_client()
                 .post(&format!("{}/newsletters", self.address()))
                 .json(&body)
                 .basic_auth(
@@ -178,6 +188,31 @@ pub mod client {
                 .send()
                 .await
                 .expect("Failed to execute request")
+        }
+
+        /// Send a POST request to the `login` endpoint.
+        pub async fn post_login<Body>(&self, body: &Body) -> reqwest::Response
+        where
+            Body: serde::Serialize,
+        {
+            self.api_client()
+                .post(&format!("{}/login", self.address()))
+                .form(body)
+                .send()
+                .await
+                .expect("Failed to execute request")
+        }
+
+        /// Get the HTML from the `/login` endpoint.
+        pub async fn get_login_html(&self) -> String {
+            self.api_client()
+                .get(&format!("{}/login", self.address()))
+                .send()
+                .await
+                .expect("Failed to execute request")
+                .text()
+                .await
+                .unwrap()
         }
     }
 }
@@ -234,4 +269,9 @@ impl TestApp {
             plain_text: get_link(&body["TextBody"].as_str().unwrap()),
         }
     }
+}
+
+pub fn assert_is_redirect_to(response: &reqwest::Response, location: &str) {
+    assert_eq!(response.status(), StatusCode::SEE_OTHER);
+    assert_eq!(response.headers().get("Location").unwrap(), location);
 }

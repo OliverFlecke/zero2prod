@@ -1,33 +1,34 @@
-use crate::{
-    authorization::{Credentials, CredentialsError},
-    state::HmacSecret,
-};
+use crate::authorization::{Credentials, CredentialsError};
 use axum::{
     body::Empty,
     extract::State,
     response::{IntoResponse, Response},
     Form,
 };
-use hmac::{Hmac, Mac};
+use axum_extra::extract::{cookie::Cookie, SignedCookieJar};
 use http::{header, StatusCode};
-use secrecy::ExposeSecret;
 use secrecy::Secret;
 use sqlx::PgPool;
 use std::sync::Arc;
 
 #[tracing::instrument(
+    name = "Perform a login attempt",
     skip(form, pool),
     fields(username=tracing::field::Empty, user_id=tracing::field::Empty)
 )]
 pub async fn login(
     State(pool): State<Arc<PgPool>>,
-    State(hmac_secret): State<Arc<HmacSecret>>,
+    cookie_jar: SignedCookieJar,
     Form(form): Form<FormData>,
 ) -> Response {
     let credentials: Credentials = form.into();
     tracing::Span::current().record("username", &tracing::field::display(credentials.username()));
 
-    match credentials.validate_credentials(&pool).await {
+    match credentials
+        .validate_credentials(&pool)
+        .await
+        .map_err(LoginError::AuthError)
+    {
         Ok(user_id) => {
             tracing::Span::current().record("user_id", &tracing::field::display(&user_id));
 
@@ -39,8 +40,22 @@ pub async fn login(
                 .into_response()
         }
         Err(e) => {
-            build_error_response_with_redirect(LoginError::AuthError(e), hmac_secret.as_ref())
-                .into_response()
+            let cookie = Cookie::build("_flash", e.to_string())
+                // Set the cookie to expire straight away so only the first
+                // GET request to `/login` will contain the error message.
+                .max_age(cookie::time::Duration::seconds(1))
+                .secure(true)
+                .http_only(true)
+                .finish();
+
+            let response = Response::builder()
+                .status(StatusCode::SEE_OTHER)
+                .header(header::LOCATION, "/login")
+                .body(Empty::default())
+                .unwrap()
+                .into_response();
+
+            (cookie_jar.add(cookie), response).into_response()
         }
     }
 }
@@ -61,26 +76,4 @@ impl From<FormData> for Credentials {
 pub enum LoginError {
     #[error("Authentication failed")]
     AuthError(#[source] CredentialsError),
-}
-
-fn build_error_response_with_redirect(error: LoginError, hmac_secret: &HmacSecret) -> Response {
-    let query_string = format!("error={}", urlencoding::Encoded::new(error.to_string()));
-
-    let hmac_tag = {
-        let mut mac =
-            Hmac::<sha3::Sha3_256>::new_from_slice(hmac_secret.0.expose_secret().as_bytes())
-                .unwrap();
-        mac.update(query_string.as_bytes());
-        mac.finalize().into_bytes()
-    };
-
-    Response::builder()
-        .status(StatusCode::SEE_OTHER)
-        .header(
-            header::LOCATION,
-            format!("/login?{}&tag={hmac_tag:x}", query_string),
-        )
-        .body(Empty::default())
-        .unwrap()
-        .into_response()
 }

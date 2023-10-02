@@ -1,17 +1,19 @@
 use crate::{configuration::Settings, email_client::EmailClient};
 use axum::extract::FromRef;
+use axum_extra::extract::cookie::Key as CookieKey;
 use derive_getters::Getters;
 use duplicate::duplicate_item;
 use secrecy::Secret;
 use sqlx::PgPool;
 use std::sync::Arc;
 
-#[derive(Debug, Clone, Getters)]
+#[derive(Clone, Getters)]
 pub struct AppState {
     db_pool: Arc<PgPool>,
     email_client: Arc<EmailClient>,
     application_base_url: Arc<ApplicationBaseUrl>,
     hmac_secret: Arc<HmacSecret>,
+    cookie_key: CookieKey,
 }
 
 impl AppState {
@@ -21,6 +23,7 @@ impl AppState {
             email_client: Arc::new(email_client),
             application_base_url: Arc::new(ApplicationBaseUrl(config.application.base_url.clone())),
             hmac_secret: Arc::new(HmacSecret(config.application().hmac_secret().clone())),
+            cookie_key: CookieKey::generate(),
         }
     }
 }
@@ -43,3 +46,10 @@ pub struct ApplicationBaseUrl(pub String);
 
 #[derive(Debug)]
 pub struct HmacSecret(pub Secret<String>);
+
+/// Allows for extraction of the signing key for cookies.
+impl FromRef<AppState> for CookieKey {
+    fn from_ref(state: &AppState) -> Self {
+        state.cookie_key.clone()
+    }
+}

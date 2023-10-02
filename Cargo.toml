@@ -16,13 +16,13 @@ argon2 = { version = "0.5.2", features = ["std"] }
 askama = { version = "0.12.0", features = ["with-axum"] }
 askama_axum = "0.3.0"
 axum = { version = "0.6.20", features = ["http2", "tracing"] }
+axum-extra = { version = "0.8.0", features = ["cookie", "cookie-signed"] }
 base64 = "0.21.4"
 chrono = { version = "0.4.26", default-features = false, features = ["clock"] }
 config = "0.13.3"
+cookie = "0.17.0"
 derive-getters = "0.3.0"
 duplicate = "1.0.0"
-hex = "0.4.3"
-hmac = { version = "0.12.1", features = ["std"] }
 http = "0.2.9"
 hyper = "0.14.27"
 opentelemetry = { version = "0.20.0", features = ["rt-tokio"] }
@@ -31,11 +31,14 @@ opentelemetry-semantic-conventions = "0.12.0"
 opentelemetry-stdout = { version = "0.1.0", features = ["trace"] }
 opentelemetry_sdk = "0.20.0"
 rand = { version = "0.8.5", features = ["std_rng"] }
-reqwest = { version = "0.11.20", features = ["json"] }
+reqwest = { version = "0.11.20", default-features = false, features = [
+  "json",
+  "cookies",
+  "rustls-tls",
+] }
 secrecy = { version = "0.8.0", features = ["serde"] }
 serde = { version = "1.0.188", features = ["derive"] }
 serde-aux = "4.2.0"
-sha3 = "0.10.8"
 thiserror = "1.0.48"
 tokio = { version = "1.32.0", features = ["macros", "rt-multi-thread"] }
 tower = "0.4.13"
