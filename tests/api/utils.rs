@@ -214,6 +214,18 @@ pub mod client {
                 .await
                 .unwrap()
         }
+
+        /// Get the HTML page from `/admin/dashboard` endpoint
+        pub async fn get_admin_dashboard(&self) -> String {
+            self.api_client()
+                .get(&format!("{}/admin/dashboard", self.address()))
+                .send()
+                .await
+                .expect("Failed to execute request")
+                .text()
+                .await
+                .unwrap()
+        }
     }
 }
 

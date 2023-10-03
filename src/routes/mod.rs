@@ -1,6 +1,7 @@
 use crate::state::AppState;
 use axum::Router;
 
+pub mod admin;
 pub mod health;
 pub mod home;
 pub mod login;
@@ -14,6 +15,10 @@ pub fn build_router(app_state: &AppState) -> Router {
         .nest(
             "/login",
             login::create_router().with_state(app_state.clone()),
+        )
+        .nest(
+            "/admin",
+            admin::create_router().with_state(app_state.clone()),
         )
         .nest(
             "/subscriptions",
