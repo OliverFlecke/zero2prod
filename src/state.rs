@@ -17,11 +17,13 @@ pub struct AppState {
 }
 
 impl AppState {
-    pub async fn create(config: Settings, db_pool: PgPool, email_client: EmailClient) -> Self {
+    pub async fn create(config: &Settings, db_pool: PgPool, email_client: EmailClient) -> Self {
         Self {
             db_pool: Arc::new(db_pool),
             email_client: Arc::new(email_client),
-            application_base_url: Arc::new(ApplicationBaseUrl(config.application.base_url.clone())),
+            application_base_url: Arc::new(ApplicationBaseUrl(
+                config.application().base_url().clone(),
+            )),
             hmac_secret: Arc::new(HmacSecret(config.application().hmac_secret().clone())),
             cookie_key: CookieKey::generate(),
         }

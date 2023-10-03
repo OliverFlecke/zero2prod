@@ -15,8 +15,10 @@ anyhow = "1.0.75"
 argon2 = { version = "0.5.2", features = ["std"] }
 askama = { version = "0.12.0", features = ["with-axum"] }
 askama_axum = "0.3.0"
+async-redis-session = "0.2.2"
 axum = { version = "0.6.20", features = ["http2", "tracing"] }
 axum-extra = { version = "0.8.0", features = ["cookie", "cookie-signed"] }
+axum-sessions = "0.5.0"
 base64 = "0.21.4"
 chrono = { version = "0.4.26", default-features = false, features = ["clock"] }
 config = "0.13.3"
