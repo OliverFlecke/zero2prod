@@ -1,4 +1,7 @@
-use crate::authorization::{Credentials, CredentialsError};
+use crate::{
+    authorization::{Credentials, CredentialsError},
+    state::session::Session,
+};
 use axum::{
     body::Empty,
     extract::State,
@@ -6,7 +9,6 @@ use axum::{
     Form,
 };
 use axum_extra::extract::{cookie::Cookie, SignedCookieJar};
-use axum_sessions::extractors::WritableSession;
 use http::{header, StatusCode};
 use secrecy::Secret;
 use sqlx::PgPool;
@@ -20,7 +22,7 @@ use std::sync::Arc;
 pub async fn login(
     State(pool): State<Arc<PgPool>>,
     cookie_jar: SignedCookieJar,
-    mut session: WritableSession,
+    mut session: Session,
     Form(form): Form<FormData>,
 ) -> Response {
     let credentials: Credentials = form.into();
@@ -43,7 +45,7 @@ pub async fn login(
 
     session.regenerate();
     if let Err(e) = session
-        .insert("user_id", user_id)
+        .insert_user_id(user_id)
         .map_err(|e| LoginError::Unexpected(anyhow::anyhow!(e)))
     {
         return login_redirect(cookie_jar, e);

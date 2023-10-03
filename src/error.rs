@@ -6,6 +6,7 @@ use crate::{
         newsletters::PublishNewsletterError,
         subscriptions::{subscriptions_confirm::ConfirmError, SubscribeError},
     },
+    state::session::TypedSessionError,
 };
 use duplicate::duplicate_item;
 
@@ -33,6 +34,7 @@ pub fn error_chain_fmt(
     [ CredentialsError ];
     [ LoginError ];
     [ AdminDashboardError ];
+    [ TypedSessionError ];
 )]
 impl std::fmt::Debug for error_type {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {

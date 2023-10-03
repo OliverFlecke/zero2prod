@@ -1,5 +1,3 @@
-use std::sync::Arc;
-
 use anyhow::Context;
 use askama::Template;
 use axum::{
@@ -7,10 +5,12 @@ use axum::{
     extract::State,
     response::{IntoResponse, Response},
 };
-use axum_sessions::extractors::ReadableSession;
 use http::{header, StatusCode};
 use sqlx::PgPool;
+use std::sync::Arc;
 use uuid::Uuid;
+
+use crate::state::session::Session;
 
 /// Retreive the admin dashboard page.
 #[tracing::instrument(
@@ -19,9 +19,9 @@ use uuid::Uuid;
 )]
 pub async fn admin_dashboard(
     State(pool): State<Arc<PgPool>>,
-    session: ReadableSession,
+    session: Session,
 ) -> Result<impl IntoResponse, AdminDashboardError> {
-    let username = if let Some(user_id) = session.get::<Uuid>("user_id") {
+    let username = if let Some(user_id) = session.get_user_id() {
         tracing::Span::current().record("user_id", &tracing::field::display(user_id));
         get_username(user_id, pool.as_ref())
             .await

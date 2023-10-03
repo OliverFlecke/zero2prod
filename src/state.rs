@@ -7,6 +7,8 @@ use secrecy::Secret;
 use sqlx::PgPool;
 use std::sync::Arc;
 
+pub mod session;
+
 #[derive(Clone, Getters)]
 pub struct AppState {
     db_pool: Arc<PgPool>,
