@@ -1,3 +1,4 @@
+mod admin_dashboard;
 mod health;
 mod login;
 mod newsletter;

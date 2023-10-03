@@ -3,7 +3,7 @@ use askama::Template;
 use axum::{
     body::Full,
     extract::State,
-    response::{IntoResponse, Response},
+    response::{IntoResponse, Redirect, Response},
 };
 use http::{header, StatusCode};
 use sqlx::PgPool;
@@ -27,7 +27,7 @@ pub async fn admin_dashboard(
             .await
             .map_err(AdminDashboardError::Unexpected)?
     } else {
-        todo!()
+        return Ok(Redirect::to("/login").into_response());
     };
 
     tracing::Span::current().record("username", &tracing::field::display(&username));
