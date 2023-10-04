@@ -1,15 +1,28 @@
-use crate::require_login::AuthorizedUser;
+use crate::{require_login::AuthorizedUser, service::user::UserService};
 use askama::Template;
-use axum::response::IntoResponse;
+use axum::{
+    extract::State,
+    response::{IntoResponse, Response},
+};
+use http::StatusCode;
 
 /// Retreive the admin dashboard page.
-#[tracing::instrument]
-pub async fn admin_dashboard(user: AuthorizedUser) -> impl IntoResponse {
-    let body = AdminDashboardTemplate {
-        username: user.username().to_owned(),
-    };
+#[tracing::instrument(name = "Admin dashboard", skip(user_service))]
+pub async fn admin_dashboard(
+    State(user_service): State<UserService>,
+    user: AuthorizedUser,
+) -> Result<impl IntoResponse, Response> {
+    let username = user_service
+        .get_username(user.user_id())
+        .await
+        .map_err(|e| {
+            tracing::error!("{e:?}");
+            StatusCode::INTERNAL_SERVER_ERROR.into_response()
+        })?;
 
-    body.into_response()
+    let body = AdminDashboardTemplate { username };
+
+    Ok(body.into_response())
 }
 
 /// Template for HTML body of the admin portal.

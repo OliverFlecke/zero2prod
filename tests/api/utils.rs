@@ -207,6 +207,16 @@ pub mod client {
                 .expect("Failed to execute request")
         }
 
+        /// Perform a successful login with the mocked user to start an
+        /// authenticated session.
+        pub async fn login_succesfully_with_mock_user(&self) {
+            self.post_login(&serde_json::json!({
+                "username": self.test_user().username(),
+                "password": self.test_user().password(),
+            }))
+            .await;
+        }
+
         /// Get the HTML from the `/login` endpoint.
         pub async fn get_login_html(&self) -> String {
             self.api_client()

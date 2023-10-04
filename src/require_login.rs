@@ -1,7 +1,4 @@
-use crate::{
-    service::user::get_username,
-    state::{session::Session, AppState},
-};
+use crate::state::{session::Session, AppState};
 use axum::{
     async_trait,
     body::Empty,
@@ -14,19 +11,9 @@ use http::StatusCode;
 use uuid::Uuid;
 
 /// Represents a session where the user is successfully logged in.
-#[derive(Getters)]
+#[derive(Debug, Getters)]
 pub struct AuthorizedUser {
     user_id: Uuid,
-    username: String,
-}
-
-impl std::fmt::Debug for AuthorizedUser {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.debug_struct("AuthorizedUser")
-            .field("user_id", self.user_id())
-            .field("username", self.username())
-            .finish()
-    }
 }
 
 #[async_trait]
@@ -34,12 +21,12 @@ impl FromRequestParts<AppState> for AuthorizedUser {
     type Rejection = AuthorizedUserError;
 
     #[tracing::instrument(
-        skip(parts, state),
-        fields(username=tracing::field::Empty, user_id=tracing::field::Empty)
+        skip(parts, _state),
+        fields(user_id=tracing::field::Empty)
     )]
     async fn from_request_parts(
         parts: &mut Parts,
-        state: &AppState,
+        _state: &AppState,
     ) -> Result<Self, Self::Rejection> {
         use axum::RequestPartsExt;
         let session = parts
@@ -52,12 +39,7 @@ impl FromRequestParts<AppState> for AuthorizedUser {
         };
         tracing::Span::current().record("user_id", &tracing::field::display(user_id));
 
-        let username = get_username(user_id, state.db_pool())
-            .await
-            .map_err(AuthorizedUserError::Unexpected)?;
-        tracing::Span::current().record("username", &tracing::field::display(&username));
-
-        Ok(AuthorizedUser { user_id, username })
+        Ok(AuthorizedUser { user_id })
     }
 }
 
