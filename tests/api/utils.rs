@@ -156,10 +156,14 @@ pub mod client {
 
     /// Implemenation of a client for the services API.
     impl TestApp {
+        fn at_url(&self, path: &str) -> String {
+            format!("{}{path}", self.address())
+        }
+
         /// Send a request to the health check endpoint.
         pub async fn health_check(&self) -> reqwest::Response {
             self.api_client()
-                .get(format!("{}/health", self.address))
+                .get(self.at_url("/health"))
                 .send()
                 .await
                 .expect("Failed to execute request.")
@@ -168,7 +172,7 @@ pub mod client {
         /// Send a POST request to the subscription endpoint.
         pub async fn post_subscriptions(&self, body: String) -> reqwest::Response {
             self.api_client()
-                .post(&format!("{}/subscriptions", self.address))
+                .post(self.at_url("/subscriptions"))
                 .header("Content-Type", "application/x-www-form-urlencoded")
                 .body(body)
                 .send()
@@ -179,7 +183,7 @@ pub mod client {
         /// Send a POST request to the newsletter endpoint.
         pub async fn post_newsletter(&self, body: serde_json::Value) -> reqwest::Response {
             self.api_client()
-                .post(&format!("{}/newsletters", self.address()))
+                .post(self.at_url("/newsletters"))
                 .json(&body)
                 .basic_auth(
                     self.test_user().username(),
@@ -196,7 +200,7 @@ pub mod client {
             Body: serde::Serialize,
         {
             self.api_client()
-                .post(&format!("{}/login", self.address()))
+                .post(self.at_url("/login"))
                 .form(body)
                 .send()
                 .await
@@ -206,7 +210,7 @@ pub mod client {
         /// Get the HTML from the `/login` endpoint.
         pub async fn get_login_html(&self) -> String {
             self.api_client()
-                .get(&format!("{}/login", self.address()))
+                .get(self.at_url("/login"))
                 .send()
                 .await
                 .expect("Failed to execute request")
@@ -217,7 +221,7 @@ pub mod client {
 
         pub async fn get_admin_dashboard(&self) -> reqwest::Response {
             self.api_client()
-                .get(&format!("{}/admin/dashboard", self.address()))
+                .get(self.at_url("/admin/dashboard"))
                 .send()
                 .await
                 .expect("Failed to execute request")
@@ -226,6 +230,28 @@ pub mod client {
         /// Get the HTML page from `/admin/dashboard` endpoint
         pub async fn get_admin_dashboard_html(&self) -> String {
             self.get_admin_dashboard().await.text().await.unwrap()
+        }
+
+        /// Send a request to get page to change user's password.
+        pub async fn get_change_password(&self) -> reqwest::Response {
+            self.api_client()
+                .get(self.at_url("/admin/password"))
+                .send()
+                .await
+                .expect("Failed to execute request")
+        }
+
+        /// Send a POST request to change user's password.
+        pub async fn post_change_password<Body>(&self, body: &Body) -> reqwest::Response
+        where
+            Body: serde::Serialize,
+        {
+            self.api_client()
+                .post(self.at_url("/admin/password"))
+                .form(body)
+                .send()
+                .await
+                .expect("Failed to execute response")
         }
     }
 }

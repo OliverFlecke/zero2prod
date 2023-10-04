@@ -1,7 +1,8 @@
 use crate::{
     authorization::{BasicAuthError, CredentialsError},
+    require_login::AuthorizedUserError,
     routes::{
-        admin::dashboard::AdminDashboardError,
+        admin::password::ChangePasswordError,
         login::post::LoginError,
         newsletters::PublishNewsletterError,
         subscriptions::{subscriptions_confirm::ConfirmError, SubscribeError},
@@ -33,8 +34,9 @@ pub fn error_chain_fmt(
     [ ConfirmError ];
     [ CredentialsError ];
     [ LoginError ];
-    [ AdminDashboardError ];
     [ TypedSessionError ];
+    [ ChangePasswordError ];
+    [ AuthorizedUserError ];
 )]
 impl std::fmt::Debug for error_type {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
