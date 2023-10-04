@@ -6,6 +6,9 @@ use axum::response::IntoResponse;
 pub async fn change_password_form(flash: FlashMessage, user: AuthorizedUser) -> impl IntoResponse {
     ChangePasswordFormTemplate {
         error: flash.get_message(),
+        password_requirements: flash
+            .get_message_with_name("password_requirements")
+            .map(|x| x.split(",").map(String::from).collect()),
     }
 }
 
@@ -13,4 +16,5 @@ pub async fn change_password_form(flash: FlashMessage, user: AuthorizedUser) -> 
 #[template(path = "admin/change_password_form.html")]
 struct ChangePasswordFormTemplate {
     error: Option<String>,
+    password_requirements: Option<Vec<String>>,
 }

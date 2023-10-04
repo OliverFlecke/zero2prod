@@ -1,5 +1,5 @@
 use crate::{
-    authorization::{Credentials, CredentialsError},
+    authorization::{password::Password, Credentials, CredentialsError},
     require_login::AuthorizedUser,
     service::{flash_message::FlashMessage, user::UserService},
 };
@@ -45,6 +45,22 @@ pub async fn change_password(
             _ => Err(ChangePasswordError::Unexpected(anyhow::anyhow!(e))),
         };
     }
+
+    let password = match Password::verify_password_requirements(data.new_password) {
+        Ok(password) => password,
+        Err(errors) => {
+            tracing::warn!("{:?}", errors);
+            let flash = flash.set_message_with_name(
+                "password_requirements",
+                errors
+                    .iter()
+                    .map(|e| e.to_string())
+                    .collect::<Vec<_>>()
+                    .join(","),
+            );
+            return Ok((flash, Redirect::to("/admin/password")).into_response());
+        }
+    };
 
     todo!()
 }

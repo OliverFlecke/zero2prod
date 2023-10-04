@@ -10,7 +10,7 @@ use axum_extra::extract::SignedCookieJar;
 use cookie::Cookie;
 use http::StatusCode;
 
-const FLASH_MSG_KEY: &'static str = "_flash";
+const FLASH_MSG_KEY: &'static str = "_flash_";
 
 /// Service to send flash messages shown in the browser.
 /// Note that this **MUST** be returned as part of the response.
@@ -22,7 +22,11 @@ impl FlashMessage {
     /// Set a flash message that can be accessed in the next request to the server.
     /// TODO: Is this the right name for this? Maybe it should be `create` or `add`.
     pub fn set_message(self, message: String) -> Self {
-        let cookie = Cookie::build(FLASH_MSG_KEY, message)
+        self.set_message_with_name("", message)
+    }
+
+    pub fn set_message_with_name(self, name: &str, message: String) -> Self {
+        let cookie = Cookie::build(format!("{FLASH_MSG_KEY}{name}"), message)
             // Set the cookie to expire straight away so only the first
             // GET request will contain the error message.
             .max_age(cookie::time::Duration::seconds(1))
@@ -35,8 +39,12 @@ impl FlashMessage {
 
     /// Get the current flash message, if any.
     pub fn get_message(&self) -> Option<String> {
+        self.get_message_with_name("")
+    }
+
+    pub fn get_message_with_name(&self, name: &str) -> Option<String> {
         self.cookie_jar
-            .get(FLASH_MSG_KEY)
+            .get(&format!("{FLASH_MSG_KEY}{name}"))
             .map(|c| c.value().to_string())
     }
 }

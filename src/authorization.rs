@@ -1,3 +1,6 @@
+pub(crate) mod password;
+
+use crate::telemetry::spawn_blocking_with_tracing;
 use anyhow::Context;
 use argon2::{Argon2, PasswordHash, PasswordVerifier};
 use axum::{
@@ -15,8 +18,6 @@ use http::{
 use secrecy::{ExposeSecret, Secret};
 use sqlx::PgPool;
 use std::string::FromUtf8Error;
-
-use crate::telemetry::spawn_blocking_with_tracing;
 
 #[derive(Debug, Getters)]
 pub struct Credentials {
