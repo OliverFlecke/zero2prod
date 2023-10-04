@@ -1,13 +1,8 @@
-<!DOCTYPE html>
-<html lang="en">
+{% extends "base.html" %}
 
-<head>
-  <title>Home</title>
-  <meta http-equiv="content-type" content="text/html;charset=utf-8">
-</head>
+{% block title %}Home{% endblock %}
 
-<body>
-  <p>Welcome to our newsletter!</p>
-</body>
-
-</html>
+{% block content %}
+<p>Welcome to our newsletter!</p>
+{% call super() %}
+{% endblock %}

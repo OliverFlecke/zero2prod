@@ -1,29 +1,23 @@
-<!DOCTYPE html>
-<html lang="en">
+{% extends "base.html" %}
 
-<head>
-  <meta http-equiv="content-type" content="text/html;charset=utf-8">
-  <title>Login</title>
-</head>
+{% block title %}Login{% endblock %}
 
-<body>
-  {% if error.is_some() %}
-  <p><i>{{ error.as_ref().unwrap() }}</i></p>
-  {% endif %}
+{% block content %}
+{% if error.is_some() %}
+<p><i>{{ error.as_ref().unwrap() }}</i></p>
+{% endif %}
 
-  <form action="/login" method="post">
-    <label>
-      <span>Username</span>
-      <input type="text" placeholder="john@mail.org" name="username">
-    </label>
+<form action="/login" method="post">
+  <label>
+    <span>Username</span>
+    <input type="text" placeholder="john@mail.org" name="username">
+  </label>
 
-    <label>
-      <span>Password</span>
-      <input type="password" placeholder="my secret password" name="password">
-    </label>
+  <label>
+    <span>Password</span>
+    <input type="password" placeholder="my secret password" name="password">
+  </label>
 
-    <button type="submit">Login</button>
-  </form>
-</body>
-
-</html>
+  <button type="submit">Login</button>
+</form>
+{% endblock %}
