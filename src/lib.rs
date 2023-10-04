@@ -87,7 +87,7 @@ impl App {
                     tracing::error!("Request timed out: {e:?}");
                     http::StatusCode::REQUEST_TIMEOUT
                 }))
-                .layer(TimeoutLayer::new(Duration::from_secs(1)))
+                .layer(TimeoutLayer::new(Duration::from_secs(10)))
                 .layer(Self::build_session_layer(config)?),
         ))
     }

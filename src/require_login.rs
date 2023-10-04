@@ -11,7 +11,6 @@ use axum::{
 };
 use derive_getters::Getters;
 use http::StatusCode;
-use serde::de::Unexpected;
 use uuid::Uuid;
 
 /// Represents a session where the user is successfully logged in.
@@ -19,7 +18,7 @@ use uuid::Uuid;
 pub struct AuthorizedUser {
     user_id: Uuid,
     username: String,
-    session: Session,
+    // session: Session,
 }
 
 impl std::fmt::Debug for AuthorizedUser {
@@ -31,12 +30,12 @@ impl std::fmt::Debug for AuthorizedUser {
     }
 }
 
-impl AuthorizedUser {
-    /// Get the internal session as mutable for the current authorized user.
-    pub fn session_mut(&mut self) -> &mut Session {
-        &mut self.session
-    }
-}
+// impl AuthorizedUser {
+//     /// Get the internal session as mutable for the current authorized user.
+//     pub fn session_mut(&mut self) -> &mut Session {
+//         &mut self.session
+//     }
+// }
 
 #[async_trait]
 impl FromRequestParts<AppState> for AuthorizedUser {
@@ -69,7 +68,7 @@ impl FromRequestParts<AppState> for AuthorizedUser {
         Ok(AuthorizedUser {
             user_id,
             username,
-            session,
+            // session,
         })
     }
 }
