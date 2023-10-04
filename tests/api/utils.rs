@@ -241,6 +241,11 @@ pub mod client {
                 .expect("Failed to execute request")
         }
 
+        /// Get the HTML page from `/admin/password` endpoint.
+        pub async fn get_change_password_html(&self) -> String {
+            self.get_change_password().await.text().await.unwrap()
+        }
+
         /// Send a POST request to change user's password.
         pub async fn post_change_password<Body>(&self, body: &Body) -> reqwest::Response
         where

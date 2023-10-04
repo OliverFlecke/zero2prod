@@ -1,12 +1,16 @@
-use crate::require_login::AuthorizedUser;
+use crate::{require_login::AuthorizedUser, service::flash_message::FlashMessage};
 use askama::Template;
 use axum::response::IntoResponse;
 
-#[tracing::instrument(name = "Change password form")]
-pub async fn change_password_form(user: AuthorizedUser) -> impl IntoResponse {
-    ChangePasswordFormTemplate.into_response()
+#[tracing::instrument(name = "Change password form", skip(flash))]
+pub async fn change_password_form(flash: FlashMessage, user: AuthorizedUser) -> impl IntoResponse {
+    ChangePasswordFormTemplate {
+        error: flash.get_message(),
+    }
 }
 
 #[derive(Template)]
 #[template(path = "admin/change_password_form.html")]
-struct ChangePasswordFormTemplate;
+struct ChangePasswordFormTemplate {
+    error: Option<String>,
+}

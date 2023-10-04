@@ -18,7 +18,6 @@ use uuid::Uuid;
 pub struct AuthorizedUser {
     user_id: Uuid,
     username: String,
-    // session: Session,
 }
 
 impl std::fmt::Debug for AuthorizedUser {
@@ -26,16 +25,9 @@ impl std::fmt::Debug for AuthorizedUser {
         f.debug_struct("AuthorizedUser")
             .field("user_id", self.user_id())
             .field("username", self.username())
-            .finish_non_exhaustive()
+            .finish()
     }
 }
-
-// impl AuthorizedUser {
-//     /// Get the internal session as mutable for the current authorized user.
-//     pub fn session_mut(&mut self) -> &mut Session {
-//         &mut self.session
-//     }
-// }
 
 #[async_trait]
 impl FromRequestParts<AppState> for AuthorizedUser {
@@ -65,11 +57,7 @@ impl FromRequestParts<AppState> for AuthorizedUser {
             .map_err(AuthorizedUserError::Unexpected)?;
         tracing::Span::current().record("username", &tracing::field::display(&username));
 
-        Ok(AuthorizedUser {
-            user_id,
-            username,
-            // session,
-        })
+        Ok(AuthorizedUser { user_id, username })
     }
 }
 

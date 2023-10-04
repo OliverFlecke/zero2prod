@@ -1,14 +1,14 @@
 use crate::{
     authorization::{Credentials, CredentialsError},
+    service::flash_message::FlashMessage,
     state::session::Session,
 };
 use axum::{
     body::Empty,
     extract::State,
-    response::{IntoResponse, Response},
+    response::{IntoResponse, Redirect, Response},
     Form,
 };
-use axum_extra::extract::{cookie::Cookie, SignedCookieJar};
 use http::{header, StatusCode};
 use secrecy::Secret;
 use sqlx::PgPool;
@@ -16,12 +16,12 @@ use std::sync::Arc;
 
 #[tracing::instrument(
     name = "Perform a login attempt",
-    skip(form, pool, cookie_jar),
+    skip(form, pool, flash_message, session),
     fields(username=tracing::field::Empty, user_id=tracing::field::Empty)
 )]
 pub async fn login(
     State(pool): State<Arc<PgPool>>,
-    cookie_jar: SignedCookieJar,
+    flash_message: FlashMessage,
     mut session: Session,
     Form(form): Form<FormData>,
 ) -> Response {
@@ -38,7 +38,7 @@ pub async fn login(
             _ => LoginError::Unexpected(anyhow::anyhow!(e)),
         }) {
         Ok(user_id) => user_id,
-        Err(e) => return login_redirect(cookie_jar, e),
+        Err(e) => return login_redirect(flash_message, e),
     };
 
     tracing::Span::current().record("user_id", &tracing::field::display(&user_id));
@@ -48,7 +48,7 @@ pub async fn login(
         .insert_user_id(user_id)
         .map_err(|e| LoginError::Unexpected(anyhow::anyhow!(e)))
     {
-        return login_redirect(cookie_jar, e);
+        return login_redirect(flash_message, e);
     }
 
     Response::builder()
@@ -59,23 +59,12 @@ pub async fn login(
         .into_response()
 }
 
-fn login_redirect(cookie_jar: SignedCookieJar, e: LoginError) -> Response {
-    let cookie = Cookie::build("_flash", e.to_string())
-        // Set the cookie to expire straight away so only the first
-        // GET request to `/login` will contain the error message.
-        .max_age(cookie::time::Duration::seconds(1))
-        .secure(true)
-        .http_only(true)
-        .finish();
-
-    let response = Response::builder()
-        .status(StatusCode::SEE_OTHER)
-        .header(header::LOCATION, "/login")
-        .body(Empty::default())
-        .unwrap()
-        .into_response();
-
-    (cookie_jar.add(cookie), response).into_response()
+fn login_redirect(flash_message: FlashMessage, e: LoginError) -> Response {
+    (
+        flash_message.set_message(e.to_string()),
+        Redirect::to("/login"),
+    )
+        .into_response()
 }
 
 #[derive(serde::Deserialize)]

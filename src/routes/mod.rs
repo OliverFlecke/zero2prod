@@ -1,5 +1,5 @@
-use crate::state::AppState;
-use axum::Router;
+use crate::{require_login::AuthorizedUser, state::AppState};
+use axum::{middleware::from_extractor_with_state, Router};
 
 pub mod admin;
 pub mod health;
@@ -18,7 +18,12 @@ pub fn build_router(app_state: &AppState) -> Router {
         )
         .nest(
             "/admin",
-            admin::create_router().with_state(app_state.clone()),
+            admin::create_router()
+                // Enforce authorized user on all admin endpoints.
+                .route_layer(from_extractor_with_state::<AuthorizedUser, AppState>(
+                    app_state.clone(),
+                ))
+                .with_state(app_state.clone()),
         )
         .nest(
             "/subscriptions",
