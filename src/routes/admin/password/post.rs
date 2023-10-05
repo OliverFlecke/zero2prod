@@ -1,5 +1,5 @@
 use crate::{
-    authorization::{password::Password, Credentials, CredentialsError},
+    authorization::{self, password::Password, Credentials, CredentialsError},
     require_login::AuthorizedUser,
     service::{flash_message::FlashMessage, user::UserService},
 };
@@ -62,7 +62,13 @@ pub async fn change_password(
         }
     };
 
-    todo!()
+    authorization::change_password(user.user_id(), password, &pool)
+        .await
+        .map_err(ChangePasswordError::Unexpected)?;
+
+    let flash = flash.set_message("Your password has been changed.".to_string());
+
+    Ok((flash, Redirect::to("/admin/password")).into_response())
 }
 
 #[derive(serde::Deserialize)]

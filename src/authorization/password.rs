@@ -1,3 +1,4 @@
+use argon2::{password_hash::SaltString, Algorithm, Argon2, Params, PasswordHasher, Version};
 use secrecy::{ExposeSecret, Secret};
 
 const MIN_LENGTH: usize = 12;
@@ -27,6 +28,20 @@ impl Password {
         } else {
             Err(errors)
         }
+    }
+
+    /// Compute the hash for this password.
+    pub fn compute_password_hash(&self) -> Result<Secret<String>, anyhow::Error> {
+        let salt = SaltString::generate(&mut rand::thread_rng());
+        let password_hash = Argon2::new(
+            Algorithm::Argon2id,
+            Version::V0x13,
+            Params::new(15000, 2, 1, None).unwrap(),
+        )
+        .hash_password(self.0.expose_secret().as_bytes(), &salt)?
+        .to_string();
+
+        Ok(Secret::new(password_hash))
     }
 }
 
