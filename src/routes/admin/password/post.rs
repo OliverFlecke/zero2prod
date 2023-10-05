@@ -1,5 +1,9 @@
 use crate::{
-    authorization::{self, password::Password, Credentials, CredentialsError},
+    authorization::{
+        self,
+        password::{Password, PasswordRequirementError},
+        Credentials, CredentialsError,
+    },
     require_login::AuthorizedUser,
     service::{flash_message::FlashMessage, user::UserService},
 };
@@ -14,6 +18,7 @@ use secrecy::{ExposeSecret, Secret};
 use sqlx::PgPool;
 use std::sync::Arc;
 
+/// Handler to change the password for an authorized user.
 #[tracing::instrument(name = "Change password", skip(flash, data, user_service))]
 pub async fn change_password(
     State(pool): State<Arc<PgPool>>,
@@ -23,10 +28,7 @@ pub async fn change_password(
     Form(data): Form<FormData>,
 ) -> Result<Response, ChangePasswordError> {
     if data.new_password.expose_secret() != data.new_password_check.expose_secret() {
-        let flash = flash.set_message(
-            "You entered two different new passwords - the field values must match.".to_string(),
-        );
-        return Ok((flash, Redirect::to("/admin/password")).into_response());
+        return Err(ChangePasswordError::NewPasswordNotMatching(flash));
     }
 
     let username = user_service
@@ -36,39 +38,28 @@ pub async fn change_password(
         .map_err(ChangePasswordError::Unexpected)?;
 
     let credentials = Credentials::new(username, data.current_password);
-    if let Err(e) = credentials.validate_credentials(&pool).await {
-        return match e {
+    credentials
+        .validate_credentials(&pool)
+        .await
+        .map_err(|e| match e {
             CredentialsError::InvalidPassword(_) => {
-                let flash = flash.set_message("The current password is incorrect.".to_string());
-                Ok((flash, Redirect::to("/admin/password")).into_response())
+                ChangePasswordError::InvalidPassword(e, flash.clone())
             }
-            _ => Err(ChangePasswordError::Unexpected(anyhow::anyhow!(e))),
-        };
-    }
+            _ => ChangePasswordError::Unexpected(anyhow::anyhow!(e)),
+        })?;
 
-    let password = match Password::verify_password_requirements(data.new_password) {
-        Ok(password) => password,
-        Err(errors) => {
-            tracing::warn!("{:?}", errors);
-            let flash = flash.set_message_with_name(
-                "password_requirements",
-                errors
-                    .iter()
-                    .map(|e| e.to_string())
-                    .collect::<Vec<_>>()
-                    .join(","),
-            );
-            return Ok((flash, Redirect::to("/admin/password")).into_response());
-        }
-    };
+    let password = Password::verify_password_requirements(data.new_password)
+        .map_err(|es| ChangePasswordError::PasswordRequirementsNotSatisfied(es, flash.clone()))?;
 
     authorization::change_password(user.user_id(), password, &pool)
         .await
         .map_err(ChangePasswordError::Unexpected)?;
 
-    let flash = flash.set_message("Your password has been changed.".to_string());
-
-    Ok((flash, Redirect::to("/admin/password")).into_response())
+    Ok((
+        flash.set_message("Your password has been changed.".to_string()),
+        Redirect::to("/admin/password"),
+    )
+        .into_response())
 }
 
 #[derive(serde::Deserialize)]
@@ -82,13 +73,43 @@ pub struct FormData {
 pub enum ChangePasswordError {
     #[error("Unexpected error")]
     Unexpected(#[source] anyhow::Error),
+    #[error("Password requirements not satisfied")]
+    PasswordRequirementsNotSatisfied(Vec<PasswordRequirementError>, FlashMessage),
+    #[error("New passwords does not match")]
+    NewPasswordNotMatching(FlashMessage),
+    #[error("Invalid password")]
+    InvalidPassword(#[source] CredentialsError, FlashMessage),
 }
 
 impl IntoResponse for ChangePasswordError {
     fn into_response(self) -> askama_axum::Response {
         tracing::error!("{self:?}");
         match self {
-            ChangePasswordError::Unexpected(_) => StatusCode::INTERNAL_SERVER_ERROR.into_response(),
+            Self::Unexpected(_) => StatusCode::INTERNAL_SERVER_ERROR.into_response(),
+            Self::PasswordRequirementsNotSatisfied(missing_requirements, flash) => {
+                let flash = flash.set_message_with_name(
+                    "password_requirements",
+                    missing_requirements
+                        .iter()
+                        .map(|e| e.to_string())
+                        .collect::<Vec<_>>()
+                        .join(","),
+                );
+                (flash, Redirect::to("/admin/password")).into_response()
+            }
+            Self::NewPasswordNotMatching(flash) => (
+                flash.set_message(
+                    "You entered two different new passwords - the field values must match."
+                        .to_string(),
+                ),
+                Redirect::to("/admin/password"),
+            )
+                .into_response(),
+            Self::InvalidPassword(_, flash) => (
+                flash.set_message("The current password is incorrect.".to_string()),
+                Redirect::to("/admin/password"),
+            )
+                .into_response(),
         }
     }
 }

@@ -16,6 +16,7 @@ const FLASH_MSG_KEY: &'static str = "_flash_";
 
 /// Service to send flash messages shown in the browser.
 /// Note that this **MUST** be returned as part of the response.
+#[derive(Clone)]
 pub struct FlashMessage {
     cookie_jar: SignedCookieJar,
 }
