@@ -10,7 +10,7 @@ use axum_extra::extract::SignedCookieJar;
 use cookie::Cookie;
 use http::StatusCode;
 
-const FLASH_MSG_KEY: &'static str = "_flash_";
+const FLASH_MSG_KEY: &str = "_flash_";
 
 // TODO: Consider adding message "levels" (e.g. error, info) to flash messages.
 

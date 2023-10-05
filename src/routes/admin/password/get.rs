@@ -8,7 +8,7 @@ pub async fn change_password_form(flash: FlashMessage, user: AuthorizedUser) -> 
         error: flash.get_message(),
         password_requirements: flash
             .get_message_with_name("password_requirements")
-            .map(|x| x.split(",").map(String::from).collect()),
+            .map(|x| x.split(',').map(String::from).collect()),
     }
 }
 
