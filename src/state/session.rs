@@ -9,13 +9,17 @@ use uuid::Uuid;
 
 const USER_ID_KEY: &str = "user_id";
 
-#[derive(Debug)]
 pub struct Session(WritableSession);
 
 impl Session {
     /// Regenerate the current session for the user. See `WritableSession` for more details.
     pub fn regenerate(&mut self) {
         self.0.regenerate();
+    }
+
+    /// Log the user out of the current session.
+    pub fn log_out(mut self) {
+        self.0.destroy()
     }
 
     // TODO: Use custom errors instead of `anyhow`

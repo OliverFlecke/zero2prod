@@ -209,12 +209,21 @@ pub mod client {
 
         /// Perform a successful login with the mocked user to start an
         /// authenticated session.
-        pub async fn login_succesfully_with_mock_user(&self) {
+        pub async fn login_succesfully_with_mock_user(&self) -> reqwest::Response {
             self.post_login(&serde_json::json!({
                 "username": self.test_user().username(),
                 "password": self.test_user().password(),
             }))
-            .await;
+            .await
+        }
+
+        /// Log out the user.
+        pub async fn post_logout(&self) -> reqwest::Response {
+            self.api_client()
+                .post(self.at_url("/admin/logout"))
+                .send()
+                .await
+                .expect("Failed to execute request")
         }
 
         /// Get the HTML from the `/login` endpoint.

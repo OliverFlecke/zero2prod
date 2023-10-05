@@ -1,16 +1,12 @@
-use crate::{service::flash_message::FlashMessage, state::HmacSecret};
+use crate::service::flash_message::FlashMessage;
 use askama::Template;
-use axum::{extract::State, response::IntoResponse};
-use std::sync::Arc;
+use axum::response::IntoResponse;
 
 /// Return a view that renders a login form.
-#[tracing::instrument(skip(flash_message))]
-pub async fn login_form(
-    State(hmac_secret): State<Arc<HmacSecret>>,
-    flash_message: FlashMessage,
-) -> impl IntoResponse {
+#[tracing::instrument(skip(flash))]
+pub async fn login_form(flash: FlashMessage) -> impl IntoResponse {
     LoginTemplate {
-        error: flash_message.get_message(),
+        error: flash.get_message(),
     }
 }
 

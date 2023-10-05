@@ -59,7 +59,7 @@ async fn new_password_fields_must_match() {
 
     // Act - Part 3 - Follow the redirect
     let html_page = app.get_change_password_html().await;
-    assert!(dbg!(html_page).contains(
+    assert!(html_page.contains(
         "<p><i>You entered two different new passwords - the field values must match.</i></p>"
     ));
 }
@@ -112,4 +112,30 @@ async fn new_password_must_be_at_least_12_characters_long() {
     let html_page = app.get_change_password_html().await;
     assert!(html_page.contains("<h3>Password requirements not satisfied</h3>"));
     assert!(html_page.contains("Password must be at least 12 characters long"));
+}
+
+#[tokio::test]
+async fn logout_clears_session_state() {
+    // Arrange
+    let app = spawn_app().await;
+
+    // Act - Part 1 - Login
+    let response = app.login_succesfully_with_mock_user().await;
+    assert_is_redirect_to(&response, "/admin/dashboard");
+
+    // Act - Part 2 - Follow the redirect
+    let html_page = app.get_admin_dashboard_html().await;
+    assert!(html_page.contains(&format!("Welcome {}", app.test_user().username())));
+
+    // Act - Part 3 - Logout
+    let response = app.post_logout().await;
+    assert_is_redirect_to(&response, "/login");
+
+    // Act - Part 4 - Follow the redirect
+    let html_page = app.get_login_html().await;
+    assert!(html_page.contains(r#"You have successfully logged out."#));
+
+    // Act - Part 5 - Attempt to load admin panel
+    let response = app.get_admin_dashboard().await;
+    assert_is_redirect_to(&response, "/login");
 }

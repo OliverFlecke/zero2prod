@@ -12,6 +12,8 @@ use http::StatusCode;
 
 const FLASH_MSG_KEY: &'static str = "_flash_";
 
+// TODO: Consider adding message "levels" (e.g. error, info) to flash messages.
+
 /// Service to send flash messages shown in the browser.
 /// Note that this **MUST** be returned as part of the response.
 pub struct FlashMessage {
@@ -32,6 +34,7 @@ impl FlashMessage {
             .max_age(cookie::time::Duration::seconds(1))
             .secure(true)
             .http_only(true)
+            .path("/")
             .finish();
         let cookie_jar = self.cookie_jar.add(cookie);
         FlashMessage { cookie_jar }

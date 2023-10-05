@@ -48,7 +48,6 @@ impl FromRef<AppState> for Arc<service_type> {
 #[derive(Debug, Clone)]
 pub struct ApplicationBaseUrl(pub String);
 
-#[derive(Debug)]
 pub struct HmacSecret(pub Secret<String>);
 
 /// Allows for extraction of the signing key for cookies.
