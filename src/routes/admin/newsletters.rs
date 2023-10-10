@@ -1,3 +1,6 @@
+mod get;
+pub use get::publish_newsletter_html;
+
 use crate::{domain::SubscriberEmail, email_client::EmailClient, require_login::AuthorizedUser};
 use axum::{
     extract::State,

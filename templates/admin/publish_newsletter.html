@@ -1,0 +1,21 @@
+{% extends "base.html" %}
+{% block title %}Publish newsletter{% endblock %}
+
+{% block content %}
+
+<form action="/admin/newsletters" method="post">
+  <label>
+    <span>Title</span>
+    <input type="text" placeholder="My interesting title" name="title" />
+  </label>
+
+  <label>
+    <span>Content</span>
+    <textarea type="text" name="content" placeholder="My interesting newsletter content" cols=80 rows=10></textarea>
+  </label>
+
+  <br />
+  <button type="submit">Send newsletter</button>
+</form>
+
+{% endblock %}

@@ -159,3 +159,48 @@ mod utils {
         })
     }
 }
+
+mod get {
+    use crate::utils::{assert_is_redirect_to, spawn_app};
+
+    #[tokio::test]
+    async fn request_for_publish_page_without_authorized_user_redirects_to_login() {
+        // Arrange
+        let app = spawn_app().await;
+
+        // Act
+        let response = app
+            .api_client()
+            .get(app.at_url("/admin/newsletters"))
+            .send()
+            .await
+            .expect("Failed to send request");
+
+        // Assert
+        assert_is_redirect_to(&response, "/login");
+    }
+
+    #[tokio::test]
+    async fn authorized_request_returns_html_form() {
+        // Arrange
+        let app = spawn_app().await;
+        app.login_succesfully_with_mock_user()
+            .await
+            .error_for_status()
+            .expect("to succeed");
+
+        // Act
+        let html_page = app
+            .api_client()
+            .get(app.at_url("/admin/newsletters"))
+            .send()
+            .await
+            .expect("Failed to send request")
+            .text()
+            .await
+            .unwrap();
+
+        // Assert
+        assert!(html_page.contains("<form"));
+    }
+}

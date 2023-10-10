@@ -1,7 +1,7 @@
 use self::{
     dashboard::admin_dashboard,
     logout::log_out,
-    newsletters::publish_newsletter,
+    newsletters::{publish_newsletter, publish_newsletter_html},
     password::{change_password, change_password_form},
 };
 use crate::state::AppState;
@@ -21,5 +21,6 @@ pub fn create_router() -> Router<AppState> {
         .route("/password", get(change_password_form))
         .route("/password", post(change_password))
         .route("/logout", post(log_out))
+        .route("/newsletters", get(publish_newsletter_html))
         .route("/newsletters", post(publish_newsletter))
 }
