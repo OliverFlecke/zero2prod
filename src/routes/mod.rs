@@ -5,7 +5,6 @@ pub mod admin;
 pub mod health;
 pub mod home;
 pub mod login;
-pub mod newsletters;
 pub mod subscriptions;
 
 pub fn build_router(app_state: &AppState) -> Router {
@@ -28,9 +27,5 @@ pub fn build_router(app_state: &AppState) -> Router {
         .nest(
             "/subscriptions",
             subscriptions::create_router().with_state(app_state.clone()),
-        )
-        .nest(
-            "/newsletters",
-            newsletters::create_router().with_state(app_state.clone()),
         )
 }

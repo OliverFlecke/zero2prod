@@ -156,7 +156,7 @@ pub mod client {
 
     /// Implemenation of a client for the services API.
     impl TestApp {
-        fn at_url(&self, path: &str) -> String {
+        pub fn at_url(&self, path: &str) -> String {
             format!("{}{path}", self.address())
         }
 
@@ -182,13 +182,17 @@ pub mod client {
 
         /// Send a POST request to the newsletter endpoint.
         pub async fn post_newsletter(&self, body: serde_json::Value) -> reqwest::Response {
+            self.login_succesfully_with_mock_user()
+                .await
+                .error_for_status()
+                .unwrap();
             self.api_client()
-                .post(self.at_url("/newsletters"))
+                .post(self.at_url("/admin/newsletters"))
                 .json(&body)
-                .basic_auth(
-                    self.test_user().username(),
-                    Some(self.test_user().password()),
-                )
+                // .basic_auth(
+                //     self.test_user().username(),
+                //     Some(self.test_user().password()),
+                // )
                 .send()
                 .await
                 .expect("Failed to execute request")

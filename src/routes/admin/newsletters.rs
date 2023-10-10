@@ -1,23 +1,12 @@
-use crate::{
-    authorization::{build_auth_error, Credentials, CredentialsError},
-    domain::SubscriberEmail,
-    email_client::EmailClient,
-    state::AppState,
-};
+use crate::{domain::SubscriberEmail, email_client::EmailClient, require_login::AuthorizedUser};
 use axum::{
     extract::State,
     response::{IntoResponse, Response},
-    routing::post,
-    Json, Router,
+    Json,
 };
 use http::StatusCode;
 use sqlx::PgPool;
 use std::sync::Arc;
-
-/// Create a router to serve endpoints.
-pub fn create_router() -> Router<AppState> {
-    Router::new().route("/", post(publish_newsletter))
-}
 
 /// Publish a newsletter with the given title and content.
 #[tracing::instrument(
@@ -25,18 +14,12 @@ pub fn create_router() -> Router<AppState> {
     skip(db_pool, email_client, body),
     fields(user_id=tracing::field::Empty),
 )]
-async fn publish_newsletter(
-    credentials: Credentials,
+pub async fn publish_newsletter(
+    user: AuthorizedUser,
     State(db_pool): State<Arc<PgPool>>,
     State(email_client): State<Arc<EmailClient>>,
     Json(body): Json<BodyData>,
 ) -> Result<impl IntoResponse, PublishNewsletterError> {
-    let user_id = credentials
-        .validate_credentials(&db_pool)
-        .await
-        .map_err(PublishNewsletterError::AuthError)?;
-    tracing::Span::current().record("user_id", &tracing::field::display(&user_id));
-
     let subscribers = get_confirmed_subscribers(&db_pool)
         .await
         .map_err(PublishNewsletterError::FailedToGetConfirmedSubscribers)?;
@@ -111,17 +94,11 @@ pub enum PublishNewsletterError {
     FailedToGetConfirmedSubscribers(#[source] sqlx::Error),
     #[error("Failed to send newsletter issue to {1}")]
     FailedToSendEmail(#[source] reqwest::Error, SubscriberEmail),
-    #[error("Failed to validate credentials")]
-    AuthError(#[source] CredentialsError),
 }
 
 impl IntoResponse for PublishNewsletterError {
     fn into_response(self) -> Response {
-        match self {
-            Self::FailedToGetConfirmedSubscribers(_) | Self::FailedToSendEmail(_, _) => {
-                (StatusCode::INTERNAL_SERVER_ERROR, self.to_string()).into_response()
-            }
-            Self::AuthError(_) => build_auth_error(self.to_string()),
-        }
+        tracing::error!("{self:?}");
+        (StatusCode::INTERNAL_SERVER_ERROR, self.to_string()).into_response()
     }
 }

@@ -2,9 +2,8 @@ use crate::{
     authorization::{BasicAuthError, CredentialsError},
     require_login::AuthorizedUserError,
     routes::{
-        admin::password::ChangePasswordError,
+        admin::{newsletters::PublishNewsletterError, password::ChangePasswordError},
         login::post::LoginError,
-        newsletters::PublishNewsletterError,
         subscriptions::{subscriptions_confirm::ConfirmError, SubscribeError},
     },
     state::session::TypedSessionError,

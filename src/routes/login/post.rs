@@ -51,6 +51,7 @@ pub async fn login(
         return login_redirect(flash_message, e);
     }
 
+    tracing::info!("User successfully logged in");
     Response::builder()
         .status(StatusCode::SEE_OTHER)
         .header(header::LOCATION, "/admin/dashboard")
