@@ -5,7 +5,7 @@ use crate::{domain::SubscriberEmail, email_client::EmailClient, require_login::A
 use axum::{
     extract::State,
     response::{IntoResponse, Response},
-    Json,
+    Form,
 };
 use http::StatusCode;
 use sqlx::PgPool;
@@ -21,7 +21,7 @@ pub async fn publish_newsletter(
     user: AuthorizedUser,
     State(db_pool): State<Arc<PgPool>>,
     State(email_client): State<Arc<EmailClient>>,
-    Json(body): Json<BodyData>,
+    Form(body): Form<BodyData>,
 ) -> Result<impl IntoResponse, PublishNewsletterError> {
     let subscribers = get_confirmed_subscribers(&db_pool)
         .await
@@ -31,12 +31,7 @@ pub async fn publish_newsletter(
         match subscriber {
             Ok(subscriber) => {
                 email_client
-                    .send_email(
-                        &subscriber.email,
-                        &body.title,
-                        &body.content.html,
-                        &body.content.text,
-                    )
+                    .send_email(&subscriber.email, &body.title, &body.content, &body.content)
                     .await
                     .map_err(|e| PublishNewsletterError::FailedToSendEmail(e, subscriber.email))?;
             }
@@ -56,13 +51,7 @@ pub async fn publish_newsletter(
 #[derive(Debug, serde::Deserialize)]
 pub struct BodyData {
     title: String,
-    content: Content,
-}
-
-#[derive(Debug, serde::Deserialize)]
-pub struct Content {
-    html: String,
-    text: String,
+    content: String,
 }
 
 struct ConfirmedSubscriber {

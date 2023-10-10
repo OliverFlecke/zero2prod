@@ -22,9 +22,8 @@ async fn newsletters_are_not_delivered_to_unconfirmed_subscribers() {
         .await;
 
     // Act
-
     // A sketch of the newsletter payload structure. Might change later.
-    let response = app.post_newsletter(full_body()).await;
+    let response = app.post_newsletter(&full_body()).await;
 
     // Assert
     assert_eq!(response.status(), StatusCode::OK);
@@ -45,7 +44,7 @@ async fn newsletters_are_delivered_to_confirmed_subscribers() {
         .await;
 
     // Act
-    let response = app.post_newsletter(full_body()).await;
+    let response = app.post_newsletter(&full_body()).await;
 
     // Assert
     assert_eq!(response.status(), StatusCode::OK);
@@ -53,24 +52,9 @@ async fn newsletters_are_delivered_to_confirmed_subscribers() {
 
 #[rstest]
 #[case(serde_json::json!({
-    "content": {
-        "text": "Newsletter body as plain text",
-        "html": "<p>Newsletter body as HTML</p>",
-    }
+    "content": "Newsletter body as plain text",
 }), "missing title")]
 #[case(serde_json::json!({"title": "Newsletter!" }), "missing content")]
-#[case(serde_json::json!({
-    "title": "Newsletter!",
-    "content": {
-        "text": "Newsletter body as plain text",
-    }
-}), "missing html content")]
-#[case(serde_json::json!({
-    "title": "Newsletter!",
-    "content": {
-        "html": "Newsletter body as plain text",
-    }
-}), "missing text content")]
 #[tokio::test]
 async fn newsletters_returns_422_for_invalid_data(
     #[case] invalid_body: serde_json::Value,
@@ -80,7 +64,7 @@ async fn newsletters_returns_422_for_invalid_data(
     let app = spawn_app().await;
 
     // Act
-    let response = app.post_newsletter(invalid_body).await;
+    let response = app.post_newsletter(&invalid_body).await;
 
     // Assert
     assert_eq!(
@@ -99,7 +83,6 @@ async fn requests_missing_authorization_is_redirected_to_login() {
     let response = app
         .api_client()
         .post(app.at_url("/admin/newsletters"))
-        .json(&full_body())
         .send()
         .await
         .expect("Failed to execute request");
@@ -152,10 +135,7 @@ mod utils {
     pub fn full_body() -> serde_json::Value {
         serde_json::json!({
             "title": "Newsletter title",
-            "content": {
-                "text": "Newsletter body as plain text",
-                "html": "<p>Newsletter body as HTML</p>",
-            }
+            "content": "Newsletter body as plain text",
         })
     }
 }

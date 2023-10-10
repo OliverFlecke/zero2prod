@@ -181,18 +181,17 @@ pub mod client {
         }
 
         /// Send a POST request to the newsletter endpoint.
-        pub async fn post_newsletter(&self, body: serde_json::Value) -> reqwest::Response {
+        pub async fn post_newsletter<Body>(&self, body: &Body) -> reqwest::Response
+        where
+            Body: serde::Serialize,
+        {
             self.login_succesfully_with_mock_user()
                 .await
                 .error_for_status()
                 .unwrap();
             self.api_client()
                 .post(self.at_url("/admin/newsletters"))
-                .json(&body)
-                // .basic_auth(
-                //     self.test_user().username(),
-                //     Some(self.test_user().password()),
-                // )
+                .form(body)
                 .send()
                 .await
                 .expect("Failed to execute request")
