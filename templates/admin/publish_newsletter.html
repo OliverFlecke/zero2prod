@@ -3,6 +3,10 @@
 
 {% block content %}
 
+{% if message.is_some() %}
+<p><i>{{ message.as_ref().unwrap() }}</i></p>
+{% endif %}
+
 <form action="/admin/newsletters" method="post">
   <label>
     <span>Title</span>

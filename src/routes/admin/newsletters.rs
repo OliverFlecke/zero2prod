@@ -1,10 +1,13 @@
 mod get;
 pub use get::publish_newsletter_html;
 
-use crate::{domain::SubscriberEmail, email_client::EmailClient, require_login::AuthorizedUser};
+use crate::{
+    domain::SubscriberEmail, email_client::EmailClient, require_login::AuthorizedUser,
+    service::flash_message::FlashMessage,
+};
 use axum::{
     extract::State,
-    response::{IntoResponse, Response},
+    response::{IntoResponse, Redirect, Response},
     Form,
 };
 use http::StatusCode;
@@ -14,13 +17,14 @@ use std::sync::Arc;
 /// Publish a newsletter with the given title and content.
 #[tracing::instrument(
     name = "Publish a newsletter issue",
-    skip(db_pool, email_client, body),
+    skip(db_pool, email_client, flash, body),
     fields(user_id=tracing::field::Empty),
 )]
 pub async fn publish_newsletter(
     user: AuthorizedUser,
     State(db_pool): State<Arc<PgPool>>,
     State(email_client): State<Arc<EmailClient>>,
+    flash: FlashMessage,
     Form(body): Form<BodyData>,
 ) -> Result<impl IntoResponse, PublishNewsletterError> {
     let subscribers = get_confirmed_subscribers(&db_pool)
@@ -45,7 +49,11 @@ pub async fn publish_newsletter(
         }
     }
 
-    Ok(StatusCode::OK)
+    Ok((
+        flash.set_message("The newsletter issue has been published".to_string()),
+        Redirect::to("/admin/newsletters"),
+    )
+        .into_response())
 }
 
 #[derive(Debug, serde::Deserialize)]

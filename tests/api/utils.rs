@@ -197,6 +197,20 @@ pub mod client {
                 .expect("Failed to execute request")
         }
 
+        /// Send a GET request to the `newsletter` endpoint.
+        pub async fn get_newsletters(&self) -> reqwest::Response {
+            self.api_client()
+                .get(self.at_url("/admin/newsletters"))
+                .send()
+                .await
+                .expect("Failed to send request")
+        }
+
+        /// Get the HTML page for the `newsletters` endpoint.
+        pub async fn get_newsletters_html(&self) -> String {
+            self.get_newsletters().await.text().await.unwrap()
+        }
+
         /// Send a POST request to the `login` endpoint.
         pub async fn post_login<Body>(&self, body: &Body) -> reqwest::Response
         where

@@ -26,7 +26,7 @@ async fn newsletters_are_not_delivered_to_unconfirmed_subscribers() {
     let response = app.post_newsletter(&full_body()).await;
 
     // Assert
-    assert_eq!(response.status(), StatusCode::OK);
+    assert_is_redirect_to(&response, "/admin/newsletters");
 }
 
 #[tokio::test]
@@ -44,10 +44,32 @@ async fn newsletters_are_delivered_to_confirmed_subscribers() {
         .await;
 
     // Act
+    _ = app.post_newsletter(&full_body()).await;
+}
+
+#[tokio::test]
+async fn request_is_redirected_to_publish_page_after_success_and_shows_message() {
+    // Arrange
+    let app = spawn_app().await;
+    create_confirmed_subscriber(&app).await;
+
+    // Mocking external email server
+    Mock::given(path("/email"))
+        .and(method("POST"))
+        .respond_with(ResponseTemplate::new(StatusCode::OK))
+        .expect(1)
+        .mount(app.email_server())
+        .await;
+
+    // Act - Part 1 - Post body
     let response = app.post_newsletter(&full_body()).await;
 
     // Assert
-    assert_eq!(response.status(), StatusCode::OK);
+    assert_is_redirect_to(&response, "/admin/newsletters");
+
+    // Act - Part 2 - Follow redirect
+    let html_page = app.get_newsletters_html().await;
+    assert!(html_page.contains("The newsletter issue has been published"));
 }
 
 #[rstest]
@@ -149,12 +171,7 @@ mod get {
         let app = spawn_app().await;
 
         // Act
-        let response = app
-            .api_client()
-            .get(app.at_url("/admin/newsletters"))
-            .send()
-            .await
-            .expect("Failed to send request");
+        let response = app.get_newsletters().await;
 
         // Assert
         assert_is_redirect_to(&response, "/login");
@@ -170,15 +187,7 @@ mod get {
             .expect("to succeed");
 
         // Act
-        let html_page = app
-            .api_client()
-            .get(app.at_url("/admin/newsletters"))
-            .send()
-            .await
-            .expect("Failed to send request")
-            .text()
-            .await
-            .unwrap();
+        let html_page = app.get_newsletters_html().await;
 
         // Assert
         assert!(html_page.contains("<form"));
