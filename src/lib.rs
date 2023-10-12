@@ -3,6 +3,7 @@ pub mod configuration;
 pub mod domain;
 pub mod email_client;
 pub mod error;
+pub(crate) mod idempotency;
 pub(crate) mod require_login;
 mod routes;
 pub(crate) mod service;

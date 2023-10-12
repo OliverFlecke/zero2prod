@@ -18,6 +18,8 @@
     <textarea type="text" name="content" placeholder="My interesting newsletter content" cols=80 rows=10></textarea>
   </label>
 
+  <input hidden type="text" name="idempotency_key" value="{{ idempotency_key }}" />
+
   <br />
   <button type="submit">Send newsletter</button>
 </form>

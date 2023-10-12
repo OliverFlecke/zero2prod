@@ -1,5 +1,6 @@
 use askama::Template;
 use axum::response::IntoResponse;
+use uuid::Uuid;
 
 use crate::service::flash_message::FlashMessage;
 
@@ -8,6 +9,7 @@ use crate::service::flash_message::FlashMessage;
 pub async fn publish_newsletter_html(flash: FlashMessage) -> impl IntoResponse {
     PublishNewsletter {
         message: flash.get_message(),
+        idempotency_key: Uuid::new_v4(),
     }
 }
 
@@ -15,4 +17,5 @@ pub async fn publish_newsletter_html(flash: FlashMessage) -> impl IntoResponse {
 #[template(path = "admin/publish_newsletter.html")]
 pub struct PublishNewsletter {
     message: Option<String>,
+    idempotency_key: Uuid,
 }

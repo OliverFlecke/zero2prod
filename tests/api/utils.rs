@@ -181,14 +181,10 @@ pub mod client {
         }
 
         /// Send a POST request to the newsletter endpoint.
-        pub async fn post_newsletter<Body>(&self, body: &Body) -> reqwest::Response
+        pub async fn post_publish_newsletter<Body>(&self, body: &Body) -> reqwest::Response
         where
             Body: serde::Serialize,
         {
-            self.login_succesfully_with_mock_user()
-                .await
-                .error_for_status()
-                .unwrap();
             self.api_client()
                 .post(self.at_url("/admin/newsletters"))
                 .form(body)
