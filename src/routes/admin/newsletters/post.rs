@@ -1,7 +1,7 @@
 use crate::{
     domain::SubscriberEmail,
     email_client::EmailClient,
-    idempotency::{get_saved_response, save_response, IdempotencyKey},
+    idempotency::{save_response, try_processing, IdempotencyKey, NextAction},
     require_login::AuthorizedUser,
     service::flash_message::FlashMessage,
 };
@@ -29,21 +29,54 @@ pub async fn publish_newsletter(
 ) -> Result<impl IntoResponse, PublishNewsletterError> {
     let idempotency_key: IdempotencyKey = body
         .idempotency_key
+        .clone()
         .try_into()
         .map_err(PublishNewsletterError::InvalidIdempotencyKey)?;
 
     // Return early if we have a saved response in the database for the same request.
-    if let Some(saved_response) = get_saved_response(&db_pool, &idempotency_key, user.user_id())
+    let transaction = match try_processing(&db_pool, &idempotency_key, user.user_id())
         .await
         .map_err(PublishNewsletterError::UnableToGetSavedResponse)?
     {
-        return Ok((
-            flash.set_message("The newsletter issue has been published".to_string()),
-            saved_response,
-        )
-            .into_response());
-    }
+        NextAction::StartProcessing(transaction) => transaction,
+        NextAction::ReturnSavedResponse(saved_response) => {
+            return Ok((success_message(flash), saved_response).into_response());
+        }
+    };
 
+    send_email_to_subscribers(&email_client, &db_pool, &body).await?;
+
+    let response = (success_message(flash), Redirect::to("/admin/newsletters")).into_response();
+
+    let response = save_response(transaction, &idempotency_key, user.user_id(), response)
+        .await
+        .map_err(PublishNewsletterError::FailedToSaveResponseWithIdempotencyKey)?;
+
+    Ok(response)
+}
+
+#[derive(Debug, serde::Deserialize)]
+pub struct BodyData {
+    title: String,
+    content: String,
+    idempotency_key: String,
+}
+
+struct ConfirmedSubscriber {
+    email: SubscriberEmail,
+}
+
+fn success_message(flash: FlashMessage) -> FlashMessage {
+    flash.set_message("The newsletter issue has been published".to_string())
+}
+
+/// Send out emails to all the subscribres.
+#[tracing::instrument(name = "Send email to subscribers", skip(email_client, db_pool, body))]
+async fn send_email_to_subscribers(
+    email_client: &EmailClient,
+    db_pool: &PgPool,
+    body: &BodyData,
+) -> Result<(), PublishNewsletterError> {
     let subscribers = get_confirmed_subscribers(&db_pool)
         .await
         .map_err(PublishNewsletterError::FailedToGetConfirmedSubscribers)?;
@@ -66,28 +99,7 @@ pub async fn publish_newsletter(
         }
     }
 
-    let response = (
-        flash.set_message("The newsletter issue has been published".to_string()),
-        Redirect::to("/admin/newsletters"),
-    )
-        .into_response();
-
-    let response = save_response(&db_pool, &idempotency_key, user.user_id(), response)
-        .await
-        .map_err(PublishNewsletterError::FailedToSaveResponseWithIdempotencyKey)?;
-
-    Ok(response)
-}
-
-#[derive(Debug, serde::Deserialize)]
-pub struct BodyData {
-    title: String,
-    content: String,
-    idempotency_key: String,
-}
-
-struct ConfirmedSubscriber {
-    email: SubscriberEmail,
+    Ok(())
 }
 
 /// Get all confirmed subscribers from the database.

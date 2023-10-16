@@ -1,3 +1,5 @@
+use std::time::Duration;
+
 use self::utils::*;
 use crate::utils::{assert_is_redirect_to, spawn_app};
 use http::StatusCode;
@@ -166,6 +168,38 @@ async fn newsletter_creation_is_idempotent() {
     assert!(html_page.contains("The newsletter issue has been published"));
 
     // Mock verifies the newsletter has been sent exactly **once** on Drop.
+}
+
+#[tokio::test]
+async fn concurrent_form_submission_is_handled_gracefully() {
+    // Arrange
+    let app = spawn_app().await;
+    create_confirmed_subscriber(&app).await;
+    app.login_succesfully_with_mock_user()
+        .await
+        .error_for_status()
+        .expect("Failed to login user");
+
+    Mock::given(path("/email"))
+        .and(method("POST"))
+        .respond_with(ResponseTemplate::new(StatusCode::OK).set_delay(Duration::from_secs(2)))
+        .expect(1)
+        .mount(app.email_server())
+        .await;
+
+    // Act - Submit two newsletter forms concurrently
+    let body = full_body();
+    let response1 = app.post_publish_newsletter(&body);
+    let response2 = app.post_publish_newsletter(&body);
+    let (response1, response2) = tokio::join!(response1, response2);
+
+    assert_eq!(response1.status(), response2.status());
+    assert_eq!(
+        response1.text().await.unwrap(),
+        response2.text().await.unwrap()
+    );
+
+    // Mock verifies on Drop that we have sent the newsletter email **once**.
 }
 
 mod utils {

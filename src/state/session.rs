@@ -39,7 +39,7 @@ impl<S> FromRequestParts<S> for Session {
     type Rejection = TypedSessionError;
 
     async fn from_request_parts(parts: &mut Parts, _state: &S) -> Result<Self, Self::Rejection> {
-        tracing::debug!("Extracting session from request");
+        tracing::trace!("Extracting session from request");
         use axum::RequestPartsExt;
         let session = parts
             .extract::<WritableSession>()
