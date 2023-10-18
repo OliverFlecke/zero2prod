@@ -11,8 +11,9 @@ use axum::{
     Form,
 };
 use http::StatusCode;
-use sqlx::PgPool;
+use sqlx::{PgPool, Postgres, Transaction};
 use std::sync::Arc;
+use uuid::Uuid;
 
 /// Publish a newsletter with the given title and content.
 #[tracing::instrument(
@@ -100,6 +101,32 @@ async fn send_email_to_subscribers(
     }
 
     Ok(())
+}
+
+/// Insert a newsletter issue to be sent out to all subscribers.
+#[tracing::instrument(skip_all)]
+async fn insert_newsletter_issue(
+    transaction: &mut Transaction<'_, Postgres>,
+    title: &str,
+    text_content: &str,
+) -> Result<Uuid, sqlx::Error> {
+    let newsletter_issue_id = Uuid::new_v4();
+    sqlx::query!(
+        r#"INSERT INTO newsletter_issues (
+            newsletter_issue_id,
+            title,
+            text_content,
+            published_at
+        )
+        VALUES ($1, $2, $3, now())"#,
+        newsletter_issue_id,
+        title,
+        text_content,
+    )
+    .execute(&mut **transaction)
+    .await?;
+
+    Ok(newsletter_issue_id)
 }
 
 /// Get all confirmed subscribers from the database.

@@ -120,6 +120,14 @@ impl TestUser {
         .await
         .expect("Failed to create test users");
     }
+
+    /// Login the test user.
+    pub async fn login(&self, app: &TestApp) {
+        app.login_succesfully_with_mock_user()
+            .await
+            .error_for_status()
+            .expect("Failed to login");
+    }
 }
 
 mod db {
