@@ -34,6 +34,8 @@ async fn newsletters_are_not_delivered_to_unconfirmed_subscribers() {
 
     // Assert
     assert_is_redirect_to(&response, "/admin/newsletters");
+
+    app.dispatch_all_pending_email().await;
 }
 
 #[tokio::test]
@@ -56,6 +58,7 @@ async fn newsletters_are_delivered_to_confirmed_subscribers() {
 
     // Act
     _ = app.post_publish_newsletter(&full_body()).await;
+    app.dispatch_all_pending_email().await;
 }
 
 #[tokio::test]
@@ -85,6 +88,8 @@ async fn you_must_be_logged_in_to_publish_a_newsletter() {
     // Act - Part 3 - Follow redirect
     let html_page = app.get_newsletters_html().await;
     assert!(html_page.contains("The newsletter issue has been published"));
+
+    app.dispatch_all_pending_email().await;
 }
 
 #[rstest]
@@ -167,6 +172,7 @@ async fn newsletter_creation_is_idempotent() {
     let html_page = app.get_newsletters_html().await;
     assert!(html_page.contains("The newsletter issue has been published"));
 
+    app.dispatch_all_pending_email().await;
     // Mock verifies the newsletter has been sent exactly **once** on Drop.
 }
 
@@ -199,50 +205,8 @@ async fn concurrent_form_submission_is_handled_gracefully() {
         response2.text().await.unwrap()
     );
 
+    app.dispatch_all_pending_email().await;
     // Mock verifies on Drop that we have sent the newsletter email **once**.
-}
-
-#[tokio::test]
-async fn transient_errors_do_not_cause_duplicate_deliveries_on_retries() {
-    // Arrange
-    let app = spawn_app().await;
-    let newsletter_request_body = full_body();
-
-    // Two subscribers instead of one
-    create_confirmed_subscriber(&app).await;
-    create_confirmed_subscriber(&app).await;
-    app.test_user().login(&app).await;
-
-    // Part 1 - Submit newsletter form
-    // Email delivery fails for second subscriber
-    when_sending_an_email()
-        .respond_with(ResponseTemplate::new(StatusCode::OK))
-        .up_to_n_times(1)
-        .expect(1)
-        .mount(app.email_server())
-        .await;
-    when_sending_an_email()
-        .respond_with(ResponseTemplate::new(StatusCode::INTERNAL_SERVER_ERROR))
-        .up_to_n_times(1)
-        .expect(1)
-        .mount(app.email_server())
-        .await;
-
-    let response = app.post_publish_newsletter(&newsletter_request_body).await;
-    assert_eq!(response.status(), StatusCode::INTERNAL_SERVER_ERROR);
-
-    // Part 2 - Retry submitting the form
-    // Email delivery will suceed for both subscribers now
-    when_sending_an_email()
-        .respond_with(ResponseTemplate::new(StatusCode::OK))
-        .expect(1)
-        .named("Delivery retry")
-        .mount(app.email_server())
-        .await;
-    let response = app.post_publish_newsletter(&newsletter_request_body).await;
-    assert_eq!(response.status(), StatusCode::SEE_OTHER);
-
-    // Mock verifies on Drop that we did not send duplicates.
 }
 
 mod utils {
@@ -255,12 +219,8 @@ mod utils {
     use uuid::Uuid;
     use wiremock::{
         matchers::{method, path},
-        Mock, MockBuilder, ResponseTemplate,
+        Mock, ResponseTemplate,
     };
-
-    pub fn when_sending_an_email() -> MockBuilder {
-        Mock::given(path("/email")).and(method("POST"))
-    }
 
     /// Use the public API of the application under test to create an unconfirmed
     /// subscriber.

@@ -9,6 +9,8 @@ use uuid::Uuid;
 use wiremock::MockServer;
 use zero2prod::{
     configuration::get_configuration,
+    email_client::EmailClient,
+    issue_delivery_worker::{try_execute_task, ExecutionOutcome},
     telemetry::{get_subscriber, init_subscriber},
     App,
 };
@@ -31,6 +33,7 @@ pub struct TestApp {
     email_server: MockServer,
     test_user: TestUser,
     api_client: reqwest::Client,
+    email_client: EmailClient,
 }
 
 /// Spawn a instance of the app on a random port.
@@ -54,6 +57,10 @@ pub async fn spawn_app() -> TestApp {
     // Setup database
     let db_pool = db::configure_database(config.database()).await;
 
+    let email_client = config
+        .email_client()
+        .try_into()
+        .expect("Failed to create email client");
     let app = App::build(config).await.expect("Failed to build app");
     let application_port = app.port();
 
@@ -75,6 +82,7 @@ pub async fn spawn_app() -> TestApp {
         email_server,
         test_user: TestUser::generate(),
         api_client,
+        email_client,
     };
 
     app.test_user.store(app.db_pool()).await;
@@ -351,6 +359,18 @@ impl TestApp {
         ConfirmationLinks {
             html: get_link(&body["HtmlBody"].as_str().unwrap()),
             plain_text: get_link(&body["TextBody"].as_str().unwrap()),
+        }
+    }
+
+    pub async fn dispatch_all_pending_email(&self) {
+        loop {
+            if let ExecutionOutcome::EmptyQueue =
+                try_execute_task(self.db_pool(), self.email_client())
+                    .await
+                    .unwrap()
+            {
+                break;
+            }
         }
     }
 }

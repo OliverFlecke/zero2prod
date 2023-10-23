@@ -12,7 +12,7 @@ type PgTransaction = Transaction<'static, Postgres>;
 
 /// Represents the outcomes `try_execute_task` can have.
 #[derive(Debug)]
-enum ExecutionOutcome {
+pub enum ExecutionOutcome {
     TaskCompleted,
     EmptyQueue,
 }
@@ -26,7 +26,7 @@ enum ExecutionOutcome {
         newsletter_issue_id=tracing::field::Empty,
         subscriber_email=tracing::field::Empty
     ))]
-async fn try_execute_task(
+pub async fn try_execute_task(
     pool: &PgPool,
     email_client: &EmailClient,
 ) -> Result<ExecutionOutcome, anyhow::Error> {

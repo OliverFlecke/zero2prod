@@ -1,5 +1,4 @@
 use crate::{
-    domain::SubscriberEmail,
     idempotency::{save_response, try_processing, IdempotencyKey, NextAction},
     require_login::AuthorizedUser,
     service::flash_message::FlashMessage,
