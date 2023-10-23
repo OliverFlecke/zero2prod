@@ -4,6 +4,7 @@ pub mod domain;
 pub mod email_client;
 pub mod error;
 pub(crate) mod idempotency;
+pub mod issue_delivery_worker;
 pub(crate) mod require_login;
 mod routes;
 pub(crate) mod service;
@@ -14,7 +15,7 @@ use async_redis_session::RedisSessionStore;
 use axum::{error_handling::HandleErrorLayer, BoxError, Router, Server};
 use axum_sessions::SessionLayer;
 use configuration::Settings;
-use sqlx::postgres::PgPoolOptions;
+use sqlx::{postgres::PgPoolOptions, PgPool};
 use state::AppState;
 use std::{net::TcpListener, time::Duration};
 use tower::{timeout::TimeoutLayer, ServiceBuilder};
@@ -34,9 +35,7 @@ pub struct App {
 impl App {
     pub async fn build(config: Settings) -> anyhow::Result<Self> {
         let listener = TcpListener::bind(config.application().address())?;
-        let db_pool = PgPoolOptions::new()
-            .acquire_timeout(Duration::from_secs(2))
-            .connect_lazy_with(config.database().with_db());
+        let db_pool = get_connection_pool(&config);
 
         let email_client = config
             .email_client()
@@ -106,4 +105,10 @@ impl App {
 
         Ok(SessionLayer::new(store, secret))
     }
+}
+
+pub fn get_connection_pool(configuration: &Settings) -> PgPool {
+    PgPoolOptions::new()
+        .acquire_timeout(Duration::from_secs(2))
+        .connect_lazy_with(configuration.database().with_db())
 }
