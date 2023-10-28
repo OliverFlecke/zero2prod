@@ -2,6 +2,7 @@
 name = "zero2prod"
 version = "0.1.0"
 edition = "2021"
+build = "build.rs"
 
 [lib]
 path = "src/lib.rs"
@@ -71,6 +72,9 @@ features = [
   "chrono",
   "migrate",
 ]
+
+[build-dependencies]
+vergen = { version = "8.2.4", features = ["git", "gitoxide", "time", "build"] }
 
 [dev-dependencies]
 claims = "0.7.1"

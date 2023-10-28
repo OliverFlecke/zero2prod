@@ -9,7 +9,7 @@ pub mod subscriptions;
 
 pub fn build_router(app_state: &AppState) -> Router {
     Router::new()
-        .nest("/health", health::create_router())
+        .nest("/", health::create_router())
         .nest("/", home::create_router().with_state(app_state.clone()))
         .nest(
             "/login",
