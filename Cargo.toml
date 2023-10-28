@@ -27,6 +27,7 @@ derive-getters = "0.3.0"
 duplicate = "1.0.0"
 http = "0.2.9"
 hyper = "0.14.27"
+lazy_static = "1.4.0"
 opentelemetry = { version = "0.20.0", features = ["rt-tokio"] }
 opentelemetry-otlp = "0.13.0"
 opentelemetry-semantic-conventions = "0.12.0"

@@ -50,7 +50,11 @@ impl App {
 
     /// Run the server until it is stopped.
     pub async fn run_until_stopped(self) -> anyhow::Result<()> {
-        tracing::info!("Server running at {}", self.listener.local_addr()?);
+        tracing::info!(
+            "Server running at {}. Version: {}",
+            self.listener.local_addr()?,
+            env!("CARGO_PKG_VERSION")
+        );
 
         Server::from_tcp(self.listener)?
             .serve(self.router.into_make_service())
