@@ -1,6 +1,11 @@
-use axum::{http::StatusCode, routing::get, Json, Router};
+use std::sync::Arc;
+
+use axum::{extract::State, http::StatusCode, routing::get, Json, Router};
 use chrono::{DateTime, NaiveDateTime};
 use lazy_static::lazy_static;
+use sqlx::PgPool;
+
+use crate::state::AppState;
 
 lazy_static! {
     static ref VERSION: String = env!("CARGO_PKG_VERSION").to_string();
@@ -12,21 +17,41 @@ lazy_static! {
 }
 
 /// Create a router to serve health checks.
-pub fn create_router() -> Router {
+pub fn create_router() -> Router<AppState> {
     Router::new()
         .route("/health", get(is_alive))
         .route("/info", get(build_info))
+        .route("/status", get(status))
 }
 
 /// Simple "is_alive" endpoint that will always return a 200 OK.
 /// Used to indicate when the webserver is up and running.
+#[tracing::instrument]
 async fn is_alive() -> StatusCode {
     tracing::debug!("Service is alive");
     StatusCode::OK
 }
 
+#[derive(Debug, serde::Serialize)]
+pub struct Status {
+    db_connected: bool,
+    // TODO: Add field to report redis status
+}
+
+/// Status endpoint to whether all required depedencies are working.
+async fn status(State(db_pool): State<Arc<PgPool>>) -> Json<Status> {
+    // TODO: Can this be done once instead of everytime to report the
+    // connection status? On the other hand, it should also report a up-to-date
+    // response.
+    let db_connected = db_pool.acquire().await.is_ok();
+
+    let status = Status { db_connected };
+    tracing::info!("Status: {:?}", status);
+    Json(status)
+}
+
 #[derive(serde::Serialize)]
-struct BuildInfo<'a> {
+pub struct BuildInfo<'a> {
     version: &'a str,
     build_timestamp: &'a NaiveDateTime,
     build: &'a str,

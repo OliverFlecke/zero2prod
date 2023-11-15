@@ -95,7 +95,7 @@ impl App {
             )
             .layer(Self::build_session_layer(config)?)
             // Routes after this layer does not have access to the user sessions.
-            .nest("/", health::create_router());
+            .nest("/", health::create_router().with_state(app_state.clone()));
 
         Ok(router.layer(
             ServiceBuilder::new()
