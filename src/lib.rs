@@ -14,8 +14,8 @@ pub mod telemetry;
 use crate::require_login::AuthorizedUser;
 use async_redis_session::RedisSessionStore;
 use axum::{
-    error_handling::HandleErrorLayer, middleware::from_extractor_with_state, BoxError, Router,
-    Server,
+    error_handling::HandleErrorLayer, middleware::from_extractor_with_state, routing::get,
+    BoxError, Router, Server,
 };
 use axum_sessions::SessionLayer;
 use configuration::Settings;
@@ -95,7 +95,8 @@ impl App {
             )
             .layer(Self::build_session_layer(config)?)
             // Routes after this layer does not have access to the user sessions.
-            .nest("/", health::create_router().with_state(app_state.clone()));
+            .nest("/", health::create_router().with_state(app_state.clone()))
+            .route("/openapi.json", get(serve_openapi_docs));
 
         Ok(router.layer(
             ServiceBuilder::new()
