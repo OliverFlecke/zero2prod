@@ -16,7 +16,7 @@ spec:
         app: api
     spec:
       containers:
-        - image: ghcr.io/oliverflecke/zero2prod:v0.2.0
+        - image: ghcr.io/oliverflecke/zero2prod:v0.3.0
           imagePullPolicy: Never
           name: api
           resources:
@@ -25,11 +25,13 @@ spec:
               cpu: 1
           env:
             - name: APP_DATABASE__HOST
-              value: postgres-postgresql.zero2prod.svc.cluster.local
+              # value: postgres-postgresql.zero2prod.svc.cluster.local
+              valueFrom: { secretKeyRef: { name: mail-pguser-mail, key: host } }
+            - name: APP_DATABASE__NAME
+              valueFrom: { secretKeyRef: { name: mail-pguser-mail, key: dbname } }
+            - name: APP_DATABASE__USER
+              valueFrom: { secretKeyRef: { name: mail-pguser-mail, key: user } }
+            - name: APP_DATABASE__PASSWORD
+              valueFrom: { secretKeyRef: { name: mail-pguser-mail, key: password } }
             - name: APP_DATABASE__REQUIRE_SSL
               value: "false"
-            - name: APP_DATABASE__PASSWORD
-              valueFrom:
-                secretKeyRef:
-                  name: postgres-postgresql
-                  key: postgres-password

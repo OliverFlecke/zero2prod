@@ -37,6 +37,38 @@ sqlx database create
 sqlx migrate run
 ```
 
+### Deploying Postgres Operator
+
+Seems like a better option for deploying a production ready version of Postgres is to use [CrunchyData's operator](https://access.crunchydata.com/documentation/postgres-operator/latest/tutorials/basic-setup).
+
+The following is the commands used to install the operator and create a cluster with a working database (all commands should be run from the `kube/postgres-opertor` directory).
+
+```sh
+### Install the operator
+kubectl apply --server-side -k kustomize/install/default
+# Check the status of the pods
+# kubectl get pods --selector=postgres-operator.crunchydata.com/control-plane=postgres-operator --field-selector=status.phase=Running
+
+### Create the cluster
+kubectl apply -k kustomize/postgres
+# To check the status:
+# kubectl describe postgresclusters.postgres-operator.crunchydata.com mail
+# To see the instances
+# kubectl get pods --selector=postgres-operator.crunchydata.com/cluster=mail,postgres-operator.crunchydata.com/instance
+
+### Connecting to the service
+# List the services
+# kubectl get svc --selector=postgres-operator.crunchydata.com/cluster=mail
+
+export PG_CLUSTER_USER_SECRET_NAME=mail-pguser-mail
+export PGPASSWORD=$(kubectl get secrets -n zero2prod "${PG_CLUSTER_USER_SECRET_NAME}" -o go-template='{{.data.password | base64decode}}')
+export PGUSER=$(kubectl get secrets -n zero2prod "${PG_CLUSTER_USER_SECRET_NAME}" -o go-template='{{.data.user | base64decode}}')
+export PGDATABASE=$(kubectl get secrets -n zero2prod "${PG_CLUSTER_USER_SECRET_NAME}" -o go-template='{{.data.dbname | base64decode}}')
+export DATABASE_URL="postgres://${PGUSER}:${PGPASSWORD}@localhost:5432/${PGDATABASE}"
+
+psql -h localhost
+```
+
 ### Deploy Redis
 
 TODO
