@@ -11,8 +11,12 @@ pub(crate) mod service;
 mod state;
 pub mod telemetry;
 
+use crate::require_login::AuthorizedUser;
 use async_redis_session::RedisSessionStore;
-use axum::{error_handling::HandleErrorLayer, BoxError, Router, Server};
+use axum::{
+    error_handling::HandleErrorLayer, middleware::from_extractor_with_state, BoxError, Router,
+    Server,
+};
 use axum_sessions::SessionLayer;
 use configuration::Settings;
 use sqlx::{postgres::PgPoolOptions, PgPool};
@@ -69,7 +73,31 @@ impl App {
 
     /// Builder the router for the application.
     fn build_router(config: &Settings, app_state: &AppState) -> anyhow::Result<Router> {
-        Ok(routes::build_router(app_state).layer(
+        use routes::*;
+        let router = Router::new()
+            .nest("/", home::create_router().with_state(app_state.clone()))
+            .nest(
+                "/login",
+                login::create_router().with_state(app_state.clone()),
+            )
+            .nest(
+                "/admin",
+                admin::create_router()
+                    // Enforce authorized user on all admin endpoints.
+                    .route_layer(from_extractor_with_state::<AuthorizedUser, AppState>(
+                        app_state.clone(),
+                    ))
+                    .with_state(app_state.clone()),
+            )
+            .nest(
+                "/subscriptions",
+                subscriptions::create_router().with_state(app_state.clone()),
+            )
+            .layer(Self::build_session_layer(config)?)
+            // Routes after this layer does not have access to the user sessions.
+            .nest("/", health::create_router());
+
+        Ok(router.layer(
             ServiceBuilder::new()
                 .set_x_request_id(MakeRequestUuid)
                 .layer(
@@ -91,8 +119,7 @@ impl App {
                     tracing::error!("Request timed out: {e:?}");
                     http::StatusCode::REQUEST_TIMEOUT
                 }))
-                .layer(TimeoutLayer::new(Duration::from_secs(10)))
-                .layer(Self::build_session_layer(config)?),
+                .layer(TimeoutLayer::new(Duration::from_secs(10))),
         ))
     }
 
