@@ -185,3 +185,38 @@ impl EmailClientSettings {
         Duration::from_millis(self.timeout_milliseconds)
     }
 }
+
+#[cfg(test)]
+mod test {
+    use super::*;
+    use fake::{Fake, Faker};
+    use pretty_assertions::assert_str_eq;
+
+    #[test]
+    fn redis_config_to_url() {
+        let config = RedisSettings {
+            host: Faker.fake(),
+            port: Faker.fake(),
+            credentials: Some(RedisCredentials {
+                username: Faker.fake(),
+                password: Secret::new(Faker.fake()),
+            }),
+        };
+
+        assert_str_eq!(
+            config.url().expose_secret().as_str(),
+            format!(
+                "redis://{}:{}@{}:{}",
+                config.credentials().as_ref().unwrap().username(),
+                config
+                    .credentials()
+                    .as_ref()
+                    .unwrap()
+                    .password()
+                    .expose_secret(),
+                config.host(),
+                config.port()
+            )
+        );
+    }
+}
