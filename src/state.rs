@@ -12,6 +12,7 @@ pub mod session;
 #[derive(Clone, Getters)]
 pub struct AppState {
     db_pool: Arc<PgPool>,
+    redis_client: Arc<redis::Client>,
     email_client: Arc<EmailClient>,
     application_base_url: Arc<ApplicationBaseUrl>,
     hmac_secret: Arc<HmacSecret>,
@@ -19,9 +20,16 @@ pub struct AppState {
 }
 
 impl AppState {
-    pub async fn create(config: &Settings, db_pool: PgPool, email_client: EmailClient) -> Self {
+    /// Create a new container for all of the app state.
+    pub async fn create(
+        config: &Settings,
+        db_pool: PgPool,
+        email_client: EmailClient,
+        redis_client: redis::Client,
+    ) -> Self {
         Self {
             db_pool: Arc::new(db_pool),
+            redis_client: Arc::new(redis_client),
             email_client: Arc::new(email_client),
             application_base_url: Arc::new(ApplicationBaseUrl(
                 config.application().base_url().clone(),
@@ -38,6 +46,7 @@ impl AppState {
     [ EmailClient ]         [ email_client ];
     [ ApplicationBaseUrl ]  [ application_base_url ];
     [ HmacSecret ]          [ hmac_secret ];
+    [ redis::Client ]       [ redis_client ];
 )]
 impl FromRef<AppState> for Arc<service_type> {
     fn from_ref(app_state: &AppState) -> Self {

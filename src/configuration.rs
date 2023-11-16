@@ -83,6 +83,7 @@ pub struct ApplicationSettings {
     pub host: String,
     pub base_url: String,
     hmac_secret: Secret<String>,
+    enable_background_worker: bool,
 }
 
 impl ApplicationSettings {

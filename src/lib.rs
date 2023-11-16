@@ -14,8 +14,8 @@ pub mod telemetry;
 use crate::require_login::AuthorizedUser;
 use async_redis_session::RedisSessionStore;
 use axum::{
-    error_handling::HandleErrorLayer, middleware::from_extractor_with_state, routing::get,
-    BoxError, Router, Server,
+    error_handling::HandleErrorLayer, middleware::from_extractor_with_state, BoxError, Router,
+    Server,
 };
 use axum_sessions::SessionLayer;
 use configuration::Settings;
@@ -30,6 +30,7 @@ use tower_http::{
 };
 use tracing::Level;
 
+/// Application container for the service itself.
 #[derive(Debug)]
 pub struct App {
     listener: TcpListener,
@@ -45,8 +46,11 @@ impl App {
             .email_client()
             .try_into()
             .expect("Failed to create email client");
+        let redis_client = redis::Client::open(
+            secrecy::ExposeSecret::expose_secret(&config.redis().url()).as_str(),
+        )?;
 
-        let app_state = AppState::create(&config, db_pool, email_client).await;
+        let app_state = AppState::create(&config, db_pool, email_client, redis_client).await;
         let router = Self::build_router(&config, &app_state)?;
 
         Ok(Self { listener, router })
@@ -96,7 +100,7 @@ impl App {
             .layer(Self::build_session_layer(config)?)
             // Routes after this layer does not have access to the user sessions.
             .nest("/", health::create_router().with_state(app_state.clone()))
-            .route("/openapi.json", get(serve_openapi_docs));
+            .nest("/", docs::create_router());
 
         Ok(router.layer(
             ServiceBuilder::new()

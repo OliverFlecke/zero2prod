@@ -3,10 +3,19 @@ use askama::Template;
 use axum::{response::IntoResponse, routing::get, Router};
 
 pub fn create_router() -> Router<AppState> {
-    Router::new().route("/", get(home_handler))
+    Router::new().route("/", get(home))
 }
 
-async fn home_handler() -> impl IntoResponse {
+/// Serves the HTML for the home page.
+#[tracing::instrument]
+#[utoipa::path(
+    get,
+    path = "/",
+    responses(
+        (status = OK, description = "Home page for the service", content_type = "text/html")
+    )
+)]
+async fn home() -> impl IntoResponse {
     HomeTemplate.into_response()
 }
 
