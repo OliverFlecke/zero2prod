@@ -18,6 +18,7 @@ async fn main() -> anyhow::Result<()> {
     telemetry::init_subscriber(subscriber);
 
     let configuration = get_configuration().expect("Failed to read configuration.");
+    tracing::debug!("{:#?}", configuration);
 
     let application = App::build(configuration.clone()).await?;
     let application_task = tokio::spawn(application.run_until_stopped());

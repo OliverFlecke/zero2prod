@@ -55,7 +55,14 @@ async fn status(State(db_pool): State<Arc<PgPool>>) -> Json<Status> {
     // TODO: Can this be done once instead of everytime to report the
     // connection status? On the other hand, it should also report a up-to-date
     // response.
-    let db_connected = db_pool.acquire().await.is_ok();
+    let db_connected = db_pool
+        .acquire()
+        .await
+        .map_err(|e| {
+            tracing::error!("{:?}", e);
+            e
+        })
+        .is_ok();
 
     let status = Status { db_connected };
     tracing::info!("Status: {:?}", status);
