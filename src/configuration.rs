@@ -72,7 +72,7 @@ pub struct Settings {
     pub database: DatabaseSettings,
     pub application: ApplicationSettings,
     pub email_client: EmailClientSettings,
-    pub redis_uri: Secret<String>,
+    pub redis: RedisSettings,
 }
 
 /// General application settings.
@@ -123,6 +123,39 @@ impl DatabaseSettings {
                 PgSslMode::Prefer
             })
             .log_statements(tracing_log::log::LevelFilter::Trace)
+    }
+}
+
+/// Settings for connecting to a redis client
+#[derive(Debug, Clone, serde::Deserialize, Getters)]
+pub struct RedisSettings {
+    credentials: Option<RedisCredentials>,
+    host: String,
+    #[serde(deserialize_with = "deserialize_number_from_string")]
+    port: u16,
+}
+
+#[derive(Debug, Clone, serde::Deserialize, Getters)]
+pub struct RedisCredentials {
+    username: String,
+    password: Secret<String>,
+}
+
+impl RedisSettings {
+    pub fn url(&self) -> Secret<String> {
+        let url = if let Some(credentials) = &self.credentials {
+            format!(
+                "redis://{username}:{password}@{host}:{port}",
+                username = credentials.username,
+                password = credentials.password.expose_secret(),
+                host = self.host,
+                port = self.port,
+            )
+        } else {
+            format!("redis://{host}:{port}", host = self.host, port = self.port)
+        };
+
+        Secret::new(url)
     }
 }
 

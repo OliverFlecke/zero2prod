@@ -128,7 +128,7 @@ impl App {
     fn build_session_layer(config: &Settings) -> anyhow::Result<SessionLayer<RedisSessionStore>> {
         use secrecy::ExposeSecret;
 
-        let store = RedisSessionStore::new(config.redis_uri().expose_secret().as_str())?;
+        let store = RedisSessionStore::new(config.redis().url().expose_secret().as_str())?;
         let secret = config
             .application()
             .hmac_secret()

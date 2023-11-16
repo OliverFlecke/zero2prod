@@ -10,6 +10,8 @@ The easiest way to get started locally is with [minikube](https://minikube.sigs.
 
 ### Deploy postgres
 
+**NOTE** the operator method should be prefered.
+
 Create storage for postgres and install through a helm chart.
 
 - `kubectl apply -f postgres-pv.yaml`
@@ -69,9 +71,31 @@ export DATABASE_URL="postgres://${PGUSER}:${PGPASSWORD}@localhost:5432/${PGDATAB
 psql -h localhost
 ```
 
+Remember to run the relevant migrations afterwards.
+
+Permissions can also be an issue. See [here](https://access.crunchydata.com/documentation/postgres-operator/latest/tutorials/basic-setup/user-management#adjusting-privileges).
+
 ### Deploy Redis
 
-TODO
+Deploying with [Bitnami's operator](https://github.com/bitnami/charts/tree/main/bitnami/redis).
+
+```sh
+helm install my-redis oci://registry-1.docker.io/bitnamicharts/redis
+```
+
+This should be all that is needed. It will create a master node and two replicas (can be customized).
+
+To get the password for redis:
+
+```sh
+kubectl -n zero2prod get secret my-redis -o jsonpath='{.data.redis-password}' | base64 --decode
+```
+
+To access it from the local machine, the service for the master can be exposed with:
+
+```sh
+kubectl -n zero2prod port-forward service/my-redis-master 6379:6379
+```
 
 ### Deploy service
 
@@ -88,7 +112,13 @@ minikube addons enable ingress
 minikube tunnel # this has to stay open during testing
 ```
 
-To access local images in `minikube` the `load` command in combination with a `imagePullPolicy: Never`.
+To access local images in `minikube`
+
+```sh
+eval $(minikube -p minikube docker-env)
+```
+
+Alternatively: the `load` command in combination with a `imagePullPolicy: Never`.
 
 ```sh
 minikube image load <image name>

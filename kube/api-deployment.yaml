@@ -16,7 +16,7 @@ spec:
         app: api
     spec:
       containers:
-        - image: ghcr.io/oliverflecke/zero2prod:v0.3.0
+        - image: ghcr.io/oliverflecke/zero2prod:v0.5.1
           imagePullPolicy: Never
           name: api
           resources:
@@ -24,14 +24,26 @@ spec:
               memory: 1Gi
               cpu: 1
           env:
+            - name: APP_APPLICATION__HOST
+              value: "127.0.0.1"
+            - name: APP_APPLICATION__BASE_URL
+              value: "http://127.0.0.1"
             - name: APP_DATABASE__HOST
               # value: postgres-postgresql.zero2prod.svc.cluster.local
               valueFrom: { secretKeyRef: { name: mail-pguser-mail, key: host } }
             - name: APP_DATABASE__NAME
               valueFrom: { secretKeyRef: { name: mail-pguser-mail, key: dbname } }
-            - name: APP_DATABASE__USER
+            - name: APP_DATABASE__USERNAME
               valueFrom: { secretKeyRef: { name: mail-pguser-mail, key: user } }
             - name: APP_DATABASE__PASSWORD
               valueFrom: { secretKeyRef: { name: mail-pguser-mail, key: password } }
             - name: APP_DATABASE__REQUIRE_SSL
-              value: "false"
+              value: "true"
+            - name: APP_REDIS__HOST
+              value: my-redis-master.zero2prod.svc.cluster.local
+            - name: APP_REDIS__PORT
+              value: "6379"
+            - name: APP_REDIS__CREDENTIALS__USERNAME
+              value: default
+            - name: APP_REDIS__CREDENTIALS__PASSWORD
+              valueFrom: { secretKeyRef: { name: my-redis, key: redis-password } }
