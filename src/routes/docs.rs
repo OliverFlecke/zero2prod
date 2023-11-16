@@ -47,3 +47,18 @@ pub async fn serve_openapi_docs_as_yaml() -> impl IntoResponse {
         ApiDoc::openapi().to_yaml().unwrap(),
     )
 }
+
+#[cfg(test)]
+mod test {
+    use super::*;
+
+    #[test]
+    fn docs_can_be_converted_to_json_string() {
+        assert!(ApiDoc::openapi().to_json().is_ok());
+    }
+
+    #[test]
+    fn docs_can_be_converted_to_yaml_string() {
+        assert!(ApiDoc::openapi().to_yaml().is_ok());
+    }
+}
