@@ -72,7 +72,7 @@ pub struct Settings {
     pub database: DatabaseSettings,
     pub application: ApplicationSettings,
     pub email_client: EmailClientSettings,
-    pub redis_uri: Secret<String>,
+    pub redis: RedisSettings,
 }
 
 /// General application settings.
@@ -83,6 +83,7 @@ pub struct ApplicationSettings {
     pub host: String,
     pub base_url: String,
     hmac_secret: Secret<String>,
+    enable_background_worker: bool,
 }
 
 impl ApplicationSettings {
@@ -126,6 +127,39 @@ impl DatabaseSettings {
     }
 }
 
+/// Settings for connecting to a redis client
+#[derive(Debug, Clone, serde::Deserialize, Getters)]
+pub struct RedisSettings {
+    credentials: Option<RedisCredentials>,
+    host: String,
+    #[serde(deserialize_with = "deserialize_number_from_string")]
+    port: u16,
+}
+
+#[derive(Debug, Clone, serde::Deserialize, Getters)]
+pub struct RedisCredentials {
+    username: String,
+    password: Secret<String>,
+}
+
+impl RedisSettings {
+    pub fn url(&self) -> Secret<String> {
+        let url = if let Some(credentials) = &self.credentials {
+            format!(
+                "redis://{username}:{password}@{host}:{port}",
+                username = credentials.username,
+                password = credentials.password.expose_secret(),
+                host = self.host,
+                port = self.port,
+            )
+        } else {
+            format!("redis://{host}:{port}", host = self.host, port = self.port)
+        };
+
+        Secret::new(url)
+    }
+}
+
 /// Settings for the email client.
 #[derive(Debug, Clone, serde::Deserialize, Getters)]
 pub struct EmailClientSettings {
@@ -149,5 +183,40 @@ impl EmailClientSettings {
 
     pub fn timeout_duration(&self) -> Duration {
         Duration::from_millis(self.timeout_milliseconds)
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use super::*;
+    use fake::{Fake, Faker};
+    use pretty_assertions::assert_str_eq;
+
+    #[test]
+    fn redis_config_to_url() {
+        let config = RedisSettings {
+            host: Faker.fake(),
+            port: Faker.fake(),
+            credentials: Some(RedisCredentials {
+                username: Faker.fake(),
+                password: Secret::new(Faker.fake()),
+            }),
+        };
+
+        assert_str_eq!(
+            config.url().expose_secret().as_str(),
+            format!(
+                "redis://{}:{}@{}:{}",
+                config.credentials().as_ref().unwrap().username(),
+                config
+                    .credentials()
+                    .as_ref()
+                    .unwrap()
+                    .password()
+                    .expose_secret(),
+                config.host(),
+                config.port()
+            )
+        );
     }
 }

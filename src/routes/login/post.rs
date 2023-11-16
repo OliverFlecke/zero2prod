@@ -61,6 +61,8 @@ pub async fn login(
 }
 
 fn login_redirect(flash_message: FlashMessage, e: LoginError) -> Response {
+    tracing::error!("{:?}", e);
+
     (
         flash_message.set_message(e.to_string()),
         Redirect::to("/login"),

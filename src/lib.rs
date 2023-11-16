@@ -11,8 +11,12 @@ pub(crate) mod service;
 mod state;
 pub mod telemetry;
 
+use crate::require_login::AuthorizedUser;
 use async_redis_session::RedisSessionStore;
-use axum::{error_handling::HandleErrorLayer, BoxError, Router, Server};
+use axum::{
+    error_handling::HandleErrorLayer, middleware::from_extractor_with_state, BoxError, Router,
+    Server,
+};
 use axum_sessions::SessionLayer;
 use configuration::Settings;
 use sqlx::{postgres::PgPoolOptions, PgPool};
@@ -26,6 +30,7 @@ use tower_http::{
 };
 use tracing::Level;
 
+/// Application container for the service itself.
 #[derive(Debug)]
 pub struct App {
     listener: TcpListener,
@@ -41,8 +46,11 @@ impl App {
             .email_client()
             .try_into()
             .expect("Failed to create email client");
+        let redis_client = redis::Client::open(
+            secrecy::ExposeSecret::expose_secret(&config.redis().url()).as_str(),
+        )?;
 
-        let app_state = AppState::create(&config, db_pool, email_client).await;
+        let app_state = AppState::create(&config, db_pool, email_client, redis_client).await;
         let router = Self::build_router(&config, &app_state)?;
 
         Ok(Self { listener, router })
@@ -69,7 +77,32 @@ impl App {
 
     /// Builder the router for the application.
     fn build_router(config: &Settings, app_state: &AppState) -> anyhow::Result<Router> {
-        Ok(routes::build_router(app_state).layer(
+        use routes::*;
+        let router = Router::new()
+            .nest("/", home::create_router().with_state(app_state.clone()))
+            .nest(
+                "/login",
+                login::create_router().with_state(app_state.clone()),
+            )
+            .nest(
+                "/admin",
+                admin::create_router()
+                    // Enforce authorized user on all admin endpoints.
+                    .route_layer(from_extractor_with_state::<AuthorizedUser, AppState>(
+                        app_state.clone(),
+                    ))
+                    .with_state(app_state.clone()),
+            )
+            .nest(
+                "/subscriptions",
+                subscriptions::create_router().with_state(app_state.clone()),
+            )
+            .layer(Self::build_session_layer(config)?)
+            // Routes after this layer does not have access to the user sessions.
+            .nest("/docs", docs::create_router())
+            .nest("/", health::create_router().with_state(app_state.clone()));
+
+        Ok(router.layer(
             ServiceBuilder::new()
                 .set_x_request_id(MakeRequestUuid)
                 .layer(
@@ -91,8 +124,7 @@ impl App {
                     tracing::error!("Request timed out: {e:?}");
                     http::StatusCode::REQUEST_TIMEOUT
                 }))
-                .layer(TimeoutLayer::new(Duration::from_secs(10)))
-                .layer(Self::build_session_layer(config)?),
+                .layer(TimeoutLayer::new(Duration::from_secs(10))),
         ))
     }
 
@@ -100,7 +132,7 @@ impl App {
     fn build_session_layer(config: &Settings) -> anyhow::Result<SessionLayer<RedisSessionStore>> {
         use secrecy::ExposeSecret;
 
-        let store = RedisSessionStore::new(config.redis_uri().expose_secret().as_str())?;
+        let store = RedisSessionStore::new(config.redis().url().expose_secret().as_str())?;
         let secret = config
             .application()
             .hmac_secret()
