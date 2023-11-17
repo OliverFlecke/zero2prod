@@ -2,5 +2,6 @@ application:
   host: 127.0.0.1
   base_url: "http://127.0.0.1"
   enable_background_worker: false
+  open_telemetry: false
 database:
   require_ssl: false

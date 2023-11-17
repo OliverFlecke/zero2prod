@@ -12,12 +12,16 @@ use zero2prod::{
 async fn main() -> anyhow::Result<()> {
     // Create a tracing layer with the configured tracer
     let service_name = "zero2prod".to_string();
-    let subscriber = telemetry::get_subscriber(service_name, stdout);
-    // let subscriber = telemetry::setup_optl(subscriber);
-
-    telemetry::init_subscriber(subscriber);
-
     let configuration = get_configuration().expect("Failed to read configuration.");
+
+    let subscriber = telemetry::get_subscriber(service_name, stdout);
+    if *configuration.application().open_telemetry() {
+        let subscriber = telemetry::setup_optl(subscriber);
+        telemetry::init_subscriber(subscriber);
+    } else {
+        telemetry::init_subscriber(subscriber);
+    }
+
     tracing::debug!("{:#?}", configuration);
 
     let application = App::build(configuration.clone()).await?;

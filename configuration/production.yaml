@@ -1,5 +1,7 @@
 application:
   host: 0.0.0.0
   base_url: ${APP_URL}
+  enable_background_worker: true
+  open_telemetry: true
 database:
   require_ssl: true
