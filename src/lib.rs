@@ -25,6 +25,7 @@ use std::{net::TcpListener, time::Duration};
 use tower::{timeout::TimeoutLayer, ServiceBuilder};
 use tower_http::{
     request_id::MakeRequestUuid,
+    services::ServeDir,
     trace::{DefaultMakeSpan, DefaultOnRequest, DefaultOnResponse, TraceLayer},
     ServiceBuilderExt,
 };
@@ -99,6 +100,7 @@ impl App {
             )
             .layer(Self::build_session_layer(config)?)
             // Routes after this layer does not have access to the user sessions.
+            .nest_service("/assets", ServeDir::new("assets"))
             .nest("/docs", docs::create_router())
             .nest("/", health::create_router().with_state(app_state.clone()));
 

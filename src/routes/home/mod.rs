@@ -2,6 +2,7 @@ use crate::state::AppState;
 use askama::Template;
 use axum::{response::IntoResponse, routing::get, Router};
 
+/// Create a router serve pages at the root of the service.
 pub fn create_router() -> Router<AppState> {
     Router::new().route("/", get(home))
 }

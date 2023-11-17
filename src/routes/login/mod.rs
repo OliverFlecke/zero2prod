@@ -1,4 +1,4 @@
-mod get;
+pub mod get;
 pub mod post;
 
 use crate::state::AppState;
@@ -9,6 +9,6 @@ use axum::{
 
 pub fn create_router() -> Router<AppState> {
     Router::new()
-        .route("/", get(get::login_form))
+        .route("/", get(get::login))
         .route("/", post(post::login))
 }

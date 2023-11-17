@@ -9,7 +9,16 @@ use utoipa::OpenApi;
 /// Documentation for the service. Can be converted into JSON or YAML.
 #[derive(OpenApi)]
 #[openapi(
-    paths(health::is_alive, health::status, health::build_info, home::home),
+    paths(
+        health::is_alive,
+        health::status,
+        health::build_info,
+        home::home,
+        login::get::login,
+        login::post::login,
+        subscriptions::subscribe,
+        subscriptions::subscriptions_confirm::confirm,
+    ),
     components(schemas(health::Status, health::BuildInfo))
 )]
 struct ApiDoc;

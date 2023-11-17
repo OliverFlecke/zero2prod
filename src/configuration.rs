@@ -84,6 +84,7 @@ pub struct ApplicationSettings {
     pub base_url: String,
     hmac_secret: Secret<String>,
     enable_background_worker: bool,
+    open_telemetry: bool,
 }
 
 impl ApplicationSettings {

@@ -4,7 +4,7 @@ use crate::{
     routes::{
         admin::{newsletters::PublishNewsletterError, password::ChangePasswordError},
         login::post::LoginError,
-        subscriptions::{subscriptions_confirm::ConfirmError, SubscribeError},
+        subscriptions::{subscriptions_confirm::ConfirmError, StoreTokenError, SubscribeError},
     },
     state::session::TypedSessionError,
 };
@@ -36,6 +36,7 @@ pub fn error_chain_fmt(
     [ TypedSessionError ];
     [ ChangePasswordError ];
     [ AuthorizedUserError ];
+    [ StoreTokenError ];
 )]
 impl std::fmt::Debug for error_type {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
