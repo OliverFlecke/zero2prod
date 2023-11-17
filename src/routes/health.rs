@@ -48,25 +48,10 @@ async fn status(
     State(db_pool): State<Arc<PgPool>>,
     State(redis_client): State<Arc<redis::Client>>,
 ) -> Json<Status> {
-    // TODO: Can this be done once instead of everytime to report the
-    // connection status? On the other hand, it should also report a up-to-date
-    // response.
-    let is_db_connected = db_pool
-        .acquire()
-        .await
-        .map_err(|e| {
-            tracing::error!("{:?}", e);
-            e
-        })
-        .is_ok();
-    let is_redis_connected = redis_client
-        .get_async_std_connection()
-        .await
-        .map_err(|e| {
-            tracing::error!("{:?}", e);
-            e
-        })
-        .is_ok();
+    let (is_db_connected, is_redis_connected) = tokio::join!(
+        check_db_connection(&db_pool),
+        check_redis_connection(&redis_client),
+    );
 
     let status = Status {
         is_db_connected,
@@ -111,4 +96,33 @@ pub struct BuildInfo<'a> {
     build_timestamp: &'a NaiveDateTime,
     /// SHA hash for the build.
     build: &'a str,
+}
+
+/// Check the connection to the service's Postgres database.
+#[tracing::instrument(skip(db_pool))]
+async fn check_db_connection(db_pool: &PgPool) -> bool {
+    // TODO: Can this be done once instead of everytime to report the
+    // connection status? On the other hand, it should also report a up-to-date
+    // response.
+    db_pool
+        .acquire()
+        .await
+        .map_err(|e| {
+            tracing::error!("{:?}", e);
+            e
+        })
+        .is_ok()
+}
+
+/// Check the connection to the Redis service.
+#[tracing::instrument(skip(redis_client))]
+async fn check_redis_connection(redis_client: &redis::Client) -> bool {
+    redis_client
+        .get_async_std_connection()
+        .await
+        .map_err(|e| {
+            tracing::error!("{:?}", e);
+            e
+        })
+        .is_ok()
 }

@@ -1,6 +1,6 @@
 #!/usr/bin/env sh
 
-docker run --rm --name jaeger \                                                                           ✔  4m 23s   system   77% 
+docker run --rm --name jaeger \
   -e COLLECTOR_ZIPKIN_HOST_PORT=:9411 \
   -p 6831:6831/udp \
   -p 6832:6832/udp \

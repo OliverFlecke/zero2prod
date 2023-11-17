@@ -18,6 +18,7 @@ async fn main() -> anyhow::Result<()> {
     if *configuration.application().open_telemetry() {
         let subscriber = telemetry::setup_optl(subscriber);
         telemetry::init_subscriber(subscriber);
+        tracing::debug!("Tracing enabled with OpenTelemetry");
     } else {
         telemetry::init_subscriber(subscriber);
     }
