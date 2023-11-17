@@ -16,6 +16,8 @@ use utoipa::OpenApi;
         home::home,
         login::get::login,
         login::post::login,
+        subscriptions::subscribe,
+        subscriptions::subscriptions_confirm::confirm,
     ),
     components(schemas(health::Status, health::BuildInfo))
 )]

@@ -8,17 +8,27 @@ use sqlx::PgPool;
 use std::sync::Arc;
 use uuid::Uuid;
 
-#[derive(Debug, serde::Deserialize)]
-pub struct Parameters {
+#[derive(Debug, serde::Deserialize, utoipa::IntoParams)]
+pub struct ConfirmSubscriptionParameters {
     subscription_token: String,
 }
 
 /// Endpoint for user to hit when confirming their subscription to the newsletter.
 #[tracing::instrument(name = "Confirm a pending subscriber", skip(db_pool))]
+#[utoipa::path(
+    get,
+    path = "/subscriptions/confirm",
+    params(ConfirmSubscriptionParameters),
+    responses(
+        (status = OK, description = "Subscription has successfully been confirmed"),
+        (status = UNAUTHORIZED, description = "Subscription token was not found"),
+        (status = INTERNAL_SERVER_ERROR, description = "Failed to confirm subscription"),
+    )
+)]
 pub async fn confirm(
     State(host): State<Arc<ApplicationBaseUrl>>,
     State(db_pool): State<Arc<PgPool>>,
-    Query(parameters): Query<Parameters>,
+    Query(parameters): Query<ConfirmSubscriptionParameters>,
 ) -> Result<StatusCode, ConfirmError> {
     let Some(subscriber_id) =
         get_subscriber_id_from_token(&db_pool, &parameters.subscription_token).await?

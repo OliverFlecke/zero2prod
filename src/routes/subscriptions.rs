@@ -17,28 +17,29 @@ use sqlx::{PgPool, Postgres, Transaction};
 use std::sync::Arc;
 use uuid::Uuid;
 
-#[derive(Debug, serde::Deserialize)]
-struct FormData {
+/// Create a router to serve subscription endpoints.
+pub fn create_router() -> Router<AppState> {
+    Router::new()
+        .route("/", post(subscribe))
+        .route("/confirm", get(subscriptions_confirm::confirm))
+}
+
+/// Parameters for a user to subscribe to the newsletter.
+#[derive(Debug, serde::Deserialize, utoipa::IntoParams)]
+pub struct SubscribeParameters {
     email: String,
     name: String,
 }
 
-impl TryFrom<FormData> for NewSubscriber {
+impl TryFrom<SubscribeParameters> for NewSubscriber {
     type Error = String;
 
-    fn try_from(value: FormData) -> Result<Self, Self::Error> {
+    fn try_from(value: SubscribeParameters) -> Result<Self, Self::Error> {
         let name = SubscriberName::parse(value.name)?;
         let email = SubscriberEmail::parse(value.email)?;
 
         Ok(Self { email, name })
     }
-}
-
-/// Create a router to serve endpoints.
-pub fn create_router() -> Router<AppState> {
-    Router::new()
-        .route("/", post(subscribe))
-        .route("/confirm", get(subscriptions_confirm::confirm))
 }
 
 /// Subscribe to the newsletter with an email and name.
@@ -50,11 +51,27 @@ pub fn create_router() -> Router<AppState> {
         subscriber_name = %form.name,
     )
 )]
+#[utoipa::path(
+    post,
+    path = "/subscriptions",
+    params(SubscribeParameters),
+    responses(
+        (
+            status = OK,
+            description = "User is successfully subscribed and a confirmation email is send to the submitted email"
+        ),
+        (
+            status = UNPROCESSABLE_ENTITY,
+            description = "Provided parameters does not match required format"
+        ),
+        (status = INTERNAL_SERVER_ERROR)
+    )
+)]
 async fn subscribe(
     State(base_url): State<Arc<ApplicationBaseUrl>>,
     State(pool): State<Arc<PgPool>>,
     State(email_client): State<Arc<EmailClient>>,
-    Form(form): Form<FormData>,
+    Form(form): Form<SubscribeParameters>,
 ) -> Result<StatusCode, SubscribeError> {
     let new_subscriber = form.try_into()?;
 
@@ -219,11 +236,5 @@ impl std::fmt::Display for StoreTokenError {
             "A database error was encountered while \
             trying to store a subscription token"
         )
-    }
-}
-
-impl std::fmt::Debug for StoreTokenError {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        crate::error::error_chain_fmt(self, f)
     }
 }
