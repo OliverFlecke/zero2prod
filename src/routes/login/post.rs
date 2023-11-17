@@ -14,10 +14,22 @@ use secrecy::Secret;
 use sqlx::PgPool;
 use std::sync::Arc;
 
+/// POST a login attempt with a pair of user credentials.
 #[tracing::instrument(
     name = "Perform a login attempt",
     skip(form, pool, flash_message, session),
     fields(username=tracing::field::Empty, user_id=tracing::field::Empty)
+)]
+#[utoipa::path(
+    post,
+    path = "/login",
+    params(FormData),
+    responses(
+        (
+            status = SEE_OTHER,
+            description = "On a successfull login, redirects to `/admin/dashboard`. On a incorrect login attempt, redirects back to `/login` with an error message",
+        ),
+    )
 )]
 pub async fn login(
     State(pool): State<Arc<PgPool>>,
@@ -60,6 +72,8 @@ pub async fn login(
         .into_response()
 }
 
+/// Redirects back to the login screen with an error message extracted from
+/// the `LoginError`. Should be used when the login attempt failed.
 fn login_redirect(flash_message: FlashMessage, e: LoginError) -> Response {
     tracing::error!("{:?}", e);
 
@@ -70,7 +84,8 @@ fn login_redirect(flash_message: FlashMessage, e: LoginError) -> Response {
         .into_response()
 }
 
-#[derive(serde::Deserialize)]
+/// Parameters with credentials for a user to login.
+#[derive(serde::Deserialize, utoipa::IntoParams)]
 pub struct FormData {
     username: String,
     password: Secret<String>,
@@ -82,6 +97,7 @@ impl From<FormData> for Credentials {
     }
 }
 
+/// Errors that can occure during a login.
 #[derive(thiserror::Error)]
 pub enum LoginError {
     #[error("Authentication failed")]

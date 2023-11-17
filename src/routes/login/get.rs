@@ -2,9 +2,16 @@ use crate::service::flash_message::FlashMessage;
 use askama::Template;
 use axum::response::IntoResponse;
 
-/// Return a view that renders a login form.
+/// Return a HTML page for a login form.
 #[tracing::instrument(skip(flash))]
-pub async fn login_form(flash: FlashMessage) -> impl IntoResponse {
+#[utoipa::path(
+    get,
+    path = "/login",
+    responses(
+        (status = OK, description = "Page for a user to login", content_type = "text/html")
+    )
+)]
+pub async fn login(flash: FlashMessage) -> impl IntoResponse {
     LoginTemplate {
         error: flash.get_message(),
     }
