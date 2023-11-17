@@ -23,7 +23,7 @@ jobs:
       - id: image-name
         run: echo "::set-output name=registry_image::${REGISTRY_IMAGE,,}"
 
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
 
       - name: Install qemu dependency
         run: |
