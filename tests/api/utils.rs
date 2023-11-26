@@ -65,7 +65,7 @@ pub async fn spawn_app() -> TestApp {
     let application_port = app.port();
 
     // Start server
-    let _ = tokio::spawn(app.run_until_stopped());
+    let _api_task = tokio::spawn(app.run_until_stopped());
 
     let address = format!("http://127.0.0.1:{application_port}");
 
@@ -357,8 +357,8 @@ impl TestApp {
         };
 
         ConfirmationLinks {
-            html: get_link(&body["HtmlBody"].as_str().unwrap()),
-            plain_text: get_link(&body["TextBody"].as_str().unwrap()),
+            html: get_link(body["HtmlBody"].as_str().unwrap()),
+            plain_text: get_link(body["TextBody"].as_str().unwrap()),
         }
     }
 

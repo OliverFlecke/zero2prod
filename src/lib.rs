@@ -5,6 +5,7 @@ pub mod email_client;
 pub mod error;
 pub(crate) mod idempotency;
 pub mod issue_delivery_worker;
+mod metrics;
 pub(crate) mod require_login;
 mod routes;
 pub(crate) mod service;
@@ -104,30 +105,10 @@ impl App {
             .nest("/docs", docs::create_router())
             .nest("/", health::create_router().with_state(app_state.clone()));
 
-        Ok(router.layer(
-            ServiceBuilder::new()
-                .set_x_request_id(MakeRequestUuid)
-                .layer(
-                    TraceLayer::new_for_http()
-                        .make_span_with(
-                            DefaultMakeSpan::new()
-                                .level(Level::INFO)
-                                .include_headers(true),
-                        )
-                        .on_request(DefaultOnRequest::new().level(Level::INFO))
-                        .on_response(
-                            DefaultOnResponse::new()
-                                .level(Level::INFO)
-                                .include_headers(true),
-                        ),
-                )
-                .propagate_x_request_id()
-                .layer(HandleErrorLayer::new(|e: BoxError| async move {
-                    tracing::error!("Request timed out: {e:?}");
-                    http::StatusCode::REQUEST_TIMEOUT
-                }))
-                .layer(TimeoutLayer::new(Duration::from_secs(10))),
-        ))
+        Ok(router
+            .add_telemetry_layer()
+            .add_metrics_layer()
+            .add_error_handling_layer())
     }
 
     /// Create a session layer with a redis backend store.
@@ -149,4 +130,53 @@ pub fn get_connection_pool(configuration: &Settings) -> PgPool {
     PgPoolOptions::new()
         .acquire_timeout(Duration::from_secs(2))
         .connect_lazy_with(configuration.database().with_db())
+}
+
+/// Utility trait to help setup different layers on the router.
+trait AddRouterLayer {
+    fn add_error_handling_layer(self) -> Self;
+
+    fn add_telemetry_layer(self) -> Self;
+
+    fn add_metrics_layer(self) -> Self;
+}
+
+impl AddRouterLayer for Router {
+    fn add_error_handling_layer(self) -> Self {
+        self.layer(
+            ServiceBuilder::new()
+                .layer(HandleErrorLayer::new(|e: BoxError| async move {
+                    tracing::error!("Request timed out: {e:?}");
+                    http::StatusCode::REQUEST_TIMEOUT
+                }))
+                .layer(TimeoutLayer::new(Duration::from_secs(10))),
+        )
+    }
+
+    fn add_telemetry_layer(self) -> Self {
+        self.layer(
+            ServiceBuilder::new()
+                .set_x_request_id(MakeRequestUuid)
+                .layer(
+                    TraceLayer::new_for_http()
+                        .make_span_with(
+                            DefaultMakeSpan::new()
+                                .level(Level::INFO)
+                                .include_headers(true),
+                        )
+                        .on_request(DefaultOnRequest::new().level(Level::INFO))
+                        .on_response(
+                            DefaultOnResponse::new()
+                                .level(Level::INFO)
+                                .include_headers(true),
+                        ),
+                )
+                .propagate_x_request_id(),
+        )
+    }
+
+    fn add_metrics_layer(self) -> Self {
+        crate::metrics::build_metric_layers(self)
+            .expect("metrics layer should always be possible to setup")
+    }
 }
