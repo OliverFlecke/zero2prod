@@ -18,6 +18,7 @@ use utoipa::OpenApi;
         login::post::login,
         subscriptions::subscribe,
         subscriptions::subscriptions_confirm::confirm,
+        crate::metrics::metrics_endpoint,
     ),
     components(schemas(health::Status, health::BuildInfo))
 )]
