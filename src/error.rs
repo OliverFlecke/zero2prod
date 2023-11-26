@@ -1,5 +1,6 @@
 use crate::{
     authorization::{BasicAuthError, CredentialsError},
+    metrics::MetricsError,
     require_login::AuthorizedUserError,
     routes::{
         admin::{newsletters::PublishNewsletterError, password::ChangePasswordError},
@@ -37,6 +38,7 @@ pub fn error_chain_fmt(
     [ ChangePasswordError ];
     [ AuthorizedUserError ];
     [ StoreTokenError ];
+    [ MetricsError ];
 )]
 impl std::fmt::Debug for error_type {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
