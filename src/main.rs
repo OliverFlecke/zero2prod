@@ -1,6 +1,7 @@
 use std::{
     fmt::{Debug, Display},
     io::stdout,
+    time::Duration,
 };
 use tokio::task::JoinError;
 use zero2prod::{
@@ -27,18 +28,27 @@ async fn main() -> anyhow::Result<()> {
 
     let application = App::build(configuration.clone()).await?;
 
-    if *configuration.application().enable_background_worker() {
-        let application_task = tokio::spawn(application.run_until_stopped());
-        let worker_task = tokio::spawn(run_worker_until_stopped(configuration));
-
-        tokio::select! {
-            o = application_task => report_exit("API", o),
-            o = worker_task => report_exit("Background worker", o),
-        };
+    let is_background_worker_enabled = *configuration.application().enable_background_worker();
+    let application_task = tokio::spawn(application.run_until_stopped());
+    let background_worker_task = if is_background_worker_enabled {
+        tokio::spawn(run_worker_until_stopped(configuration))
     } else {
-        application.run_until_stopped().await.unwrap();
-    }
+        tokio::spawn(infinite_thread())
+    };
 
+    tokio::select! {
+        result = application_task => report_exit("API", result),
+        result = background_worker_task, if is_background_worker_enabled => report_exit("Background worker", result),
+        result = tokio::signal::ctrl_c() => report_exit("Closed by user", Ok(result)),
+    };
+
+    Ok(())
+}
+
+/// This is a thread that sleeps forever. This should not be called in any
+/// production environment, but should have minimal performance implications.
+async fn infinite_thread() -> Result<(), anyhow::Error> {
+    tokio::time::sleep(Duration::MAX).await;
     Ok(())
 }
 
