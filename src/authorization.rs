@@ -5,7 +5,7 @@ use anyhow::Context;
 use argon2::{Argon2, PasswordHash, PasswordVerifier};
 use axum::{
     async_trait,
-    body::Full,
+    body::Body,
     extract::FromRequestParts,
     response::{IntoResponse, Response},
 };
@@ -172,7 +172,7 @@ pub fn build_auth_error(body: String) -> Response {
     Response::builder()
         .header(header::WWW_AUTHENTICATE, r#"Basic realm="publish""#)
         .status(StatusCode::UNAUTHORIZED)
-        .body(Full::from(body))
+        .body(Body::from(body))
         .unwrap()
         .into_response()
 }

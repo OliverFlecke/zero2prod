@@ -1,5 +1,6 @@
 use crate::routes::*;
-use axum::{headers::ContentType, response::IntoResponse, routing::get, Router, TypedHeader};
+use axum::{response::IntoResponse, routing::get, Router};
+use axum_extra::{headers::ContentType, TypedHeader};
 use http::{
     header::{self, ACCEPT},
     HeaderMap,

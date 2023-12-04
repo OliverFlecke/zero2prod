@@ -14,20 +14,24 @@ name = "zero2prod"
 [dependencies]
 anyhow = "1.0.75"
 argon2 = { version = "0.5.2", features = ["std"] }
-askama = { version = "0.12.0", features = ["with-axum"] }
-askama_axum = "0.3.0"
+askama = { version = "0.12.1", features = ["with-axum"] }
+askama_axum = "0.4.0"
 async-redis-session = "0.2.2"
-axum = { version = "0.6.20", features = ["http2", "tracing"] }
-axum-extra = { version = "0.8.0", features = ["cookie", "cookie-signed"] }
+axum = { version = "0.7.2", features = ["http2", "tracing"] }
+axum-extra = { version = "0.9.0", features = [
+  "cookie",
+  "cookie-signed",
+  "typed-header",
+] }
 axum-sessions = "0.5.0"
 base64 = "0.21.4"
 chrono = { version = "0.4.26", default-features = false, features = ["clock"] }
 config = "0.13.3"
-cookie = "0.17.0"
+cookie = "0.18.0"
 derive-getters = "0.3.0"
 duplicate = "1.0.0"
-http = "0.2.9"
-hyper = "0.14.27"
+http = "1.0.0"
+hyper = "1.0.0"
 lazy_static = "1.4.0"
 opentelemetry = { version = "0.20.0", features = ["rt-tokio"] }
 opentelemetry-otlp = "0.13.0"
@@ -45,9 +49,18 @@ secrecy = { version = "0.8.0", features = ["serde"] }
 serde = { version = "1.0.188", features = ["derive"] }
 serde-aux = "4.2.0"
 thiserror = "1.0.48"
-tokio = { version = "1.32.0", features = ["macros", "rt-multi-thread", "signal"] }
+tokio = { version = "1.32.0", features = [
+  "macros",
+  "rt-multi-thread",
+  "signal",
+] }
 tower = "0.4.13"
-tower-http = { version = "0.4.3", features = ["trace", "request-id", "util", "fs"] }
+tower-http = { version = "0.5.0", features = [
+  "trace",
+  "request-id",
+  "util",
+  "fs",
+] }
 tracing = "0.1.37"
 tracing-bunyan-formatter = "0.3.9"
 tracing-log = "0.1.3"

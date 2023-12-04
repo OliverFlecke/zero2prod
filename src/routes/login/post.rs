@@ -4,7 +4,7 @@ use crate::{
     state::session::Session,
 };
 use axum::{
-    body::Empty,
+    body::Body,
     extract::State,
     response::{IntoResponse, Redirect, Response},
     Form,
@@ -67,7 +67,7 @@ pub async fn login(
     Response::builder()
         .status(StatusCode::SEE_OTHER)
         .header(header::LOCATION, "/admin/dashboard")
-        .body(Empty::default())
+        .body(Body::empty())
         .unwrap()
         .into_response()
 }

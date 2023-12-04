@@ -16,13 +16,13 @@ use crate::require_login::AuthorizedUser;
 use async_redis_session::RedisSessionStore;
 use axum::{
     error_handling::HandleErrorLayer, middleware::from_extractor_with_state, BoxError, Router,
-    Server,
 };
 use axum_sessions::SessionLayer;
 use configuration::Settings;
 use sqlx::{postgres::PgPoolOptions, PgPool};
 use state::AppState;
-use std::{net::TcpListener, time::Duration};
+use std::time::Duration;
+use tokio::net::TcpListener;
 use tower::{timeout::TimeoutLayer, ServiceBuilder};
 use tower_http::{
     request_id::MakeRequestUuid,
@@ -41,7 +41,7 @@ pub struct App {
 
 impl App {
     pub async fn build(config: Settings) -> anyhow::Result<Self> {
-        let listener = TcpListener::bind(config.application().address())?;
+        let listener = TcpListener::bind(config.application().address()).await?;
         let db_pool = get_connection_pool(&config);
 
         let email_client = config
@@ -66,9 +66,7 @@ impl App {
             env!("CARGO_PKG_VERSION")
         );
 
-        Server::from_tcp(self.listener)?
-            .serve(self.router.into_make_service())
-            .await?;
+        axum::serve(self.listener, self.router.into_make_service()).await?;
         Ok(())
     }
 
@@ -99,7 +97,8 @@ impl App {
                 "/subscriptions",
                 subscriptions::create_router().with_state(app_state.clone()),
             )
-            .layer(Self::build_session_layer(config)?)
+            // TODO: fix session layer
+            // .layer(Self::build_session_layer(config)?)
             // Routes after this layer does not have access to the user sessions.
             .nest_service("/assets", ServeDir::new("assets"))
             .nest("/docs", docs::create_router())

@@ -1,7 +1,7 @@
 use crate::state::{session::Session, AppState};
 use axum::{
     async_trait,
-    body::Empty,
+    body::Body,
     extract::FromRequestParts,
     http::request::Parts,
     response::{IntoResponse, Redirect, Response},
@@ -59,7 +59,7 @@ impl IntoResponse for AuthorizedUserError {
 
                 Response::builder()
                     .status(StatusCode::INTERNAL_SERVER_ERROR)
-                    .body(Empty::default())
+                    .body(Body::empty())
                     .unwrap()
                     .into_response()
             }
