@@ -1,4 +1,4 @@
-use opentelemetry::{runtime, KeyValue};
+use opentelemetry::KeyValue;
 use opentelemetry_sdk::{
     trace::{BatchConfig, RandomIdGenerator, Sampler, Tracer},
     Resource,
@@ -66,7 +66,7 @@ fn init_tracer() -> Tracer {
         )
         .with_batch_config(BatchConfig::default())
         .with_exporter(opentelemetry_otlp::new_exporter().tonic())
-        .install_batch(runtime::Tokio)
+        .install_batch(opentelemetry_sdk::runtime::Tokio)
         .unwrap()
 }
 
