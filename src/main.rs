@@ -1,3 +1,5 @@
+#![forbid(unsafe_code)]
+
 use std::{
     fmt::{Debug, Display},
     io::stdout,

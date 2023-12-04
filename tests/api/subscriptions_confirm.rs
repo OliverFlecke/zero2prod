@@ -14,7 +14,7 @@ async fn confirmations_without_tokens_are_rejected_with_a_400() {
         .unwrap();
 
     // Assert
-    assert_eq!(response.status(), StatusCode::BAD_REQUEST);
+    assert_eq!(response.status(), StatusCode::BAD_REQUEST.as_u16());
 }
 
 #[tokio::test]
@@ -32,7 +32,7 @@ async fn the_link_returned_by_subscribe_returns_a_200_if_called() {
     let response = reqwest::get(confirmation_link.html).await.unwrap();
 
     // Assert
-    assert_eq!(response.status(), StatusCode::OK);
+    assert_eq!(response.status(), StatusCode::OK.as_u16());
 }
 
 #[tokio::test]
@@ -85,7 +85,7 @@ async fn confirm_without_a_token_is_unauthorized() {
     let response = reqwest::get(confirmation_link.html).await.unwrap();
 
     // Assert
-    assert_eq!(response.status(), StatusCode::UNAUTHORIZED);
+    assert_eq!(response.status(), StatusCode::UNAUTHORIZED.as_u16());
 }
 
 #[tokio::test]
@@ -109,5 +109,8 @@ async fn confirm_fails_if_there_is_a_fatal_database_error() {
     let response = reqwest::get(confirmation_link.html).await.unwrap();
 
     // Assert
-    assert_eq!(response.status(), StatusCode::INTERNAL_SERVER_ERROR);
+    assert_eq!(
+        response.status(),
+        StatusCode::INTERNAL_SERVER_ERROR.as_u16()
+    );
 }

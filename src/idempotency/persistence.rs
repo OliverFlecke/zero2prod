@@ -4,7 +4,6 @@ use axum::{
     response::{IntoResponse, Response},
 };
 use http::{HeaderName, StatusCode};
-use hyper::body::Bytes;
 use sqlx::{postgres::PgHasArrayType, PgPool, Postgres, Transaction};
 use uuid::Uuid;
 
@@ -70,7 +69,7 @@ pub async fn get_saved_response(
         let status_code = StatusCode::from_u16(r.response_status_code.try_into()?)?;
         let mut response = Response::builder()
             .status(status_code)
-            .body(Body::from(Bytes::from(r.response_body)))?;
+            .body(Body::from(r.response_body))?;
 
         for HeaderPairRecord { name, value } in r.response_headers {
             response

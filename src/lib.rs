@@ -13,12 +13,12 @@ mod state;
 pub mod telemetry;
 
 use crate::require_login::AuthorizedUser;
-use async_redis_session::RedisSessionStore;
+use anyhow::Context;
 use axum::{
     error_handling::HandleErrorLayer, middleware::from_extractor_with_state, BoxError, Router,
 };
-use axum_sessions::SessionLayer;
 use configuration::Settings;
+use http::StatusCode;
 use sqlx::{postgres::PgPoolOptions, PgPool};
 use state::AppState;
 use std::time::Duration;
@@ -29,6 +29,13 @@ use tower_http::{
     services::ServeDir,
     trace::{DefaultMakeSpan, DefaultOnRequest, DefaultOnResponse, TraceLayer},
     ServiceBuilderExt,
+};
+use tower_sessions::{
+    fred::{
+        prelude::{ClientLike, RedisClient},
+        types::RedisConfig,
+    },
+    RedisStore, SessionManagerLayer,
 };
 use tracing::Level;
 
@@ -48,12 +55,9 @@ impl App {
             .email_client()
             .try_into()
             .expect("Failed to create email client");
-        let redis_client = redis::Client::open(
-            secrecy::ExposeSecret::expose_secret(&config.redis().url()).as_str(),
-        )?;
-
+        let redis_client = create_and_connect_redis_client(&config).await?;
         let app_state = AppState::create(&config, db_pool, email_client, redis_client).await;
-        let router = Self::build_router(&config, &app_state)?;
+        let router = Self::build_router(&config, &app_state).await?;
 
         Ok(Self { listener, router })
     }
@@ -76,7 +80,9 @@ impl App {
     }
 
     /// Builder the router for the application.
-    fn build_router(config: &Settings, app_state: &AppState) -> anyhow::Result<Router> {
+    async fn build_router(config: &Settings, app_state: &AppState) -> anyhow::Result<Router> {
+        let redis_client = create_and_connect_redis_client(config).await?;
+
         use routes::*;
         let router = Router::new()
             .nest("/", home::create_router().with_state(app_state.clone()))
@@ -97,8 +103,7 @@ impl App {
                 "/subscriptions",
                 subscriptions::create_router().with_state(app_state.clone()),
             )
-            // TODO: fix session layer
-            // .layer(Self::build_session_layer(config)?)
+            .add_session_layer(redis_client)
             // Routes after this layer does not have access to the user sessions.
             .nest_service("/assets", ServeDir::new("assets"))
             .nest("/docs", docs::create_router())
@@ -109,26 +114,30 @@ impl App {
             .add_metrics_layer()
             .add_error_handling_layer())
     }
-
-    /// Create a session layer with a redis backend store.
-    fn build_session_layer(config: &Settings) -> anyhow::Result<SessionLayer<RedisSessionStore>> {
-        use secrecy::ExposeSecret;
-
-        let store = RedisSessionStore::new(config.redis().url().expose_secret().as_str())?;
-        let secret = config
-            .application()
-            .hmac_secret()
-            .expose_secret()
-            .as_bytes();
-
-        Ok(SessionLayer::new(store, secret))
-    }
 }
 
 pub fn get_connection_pool(configuration: &Settings) -> PgPool {
     PgPoolOptions::new()
         .acquire_timeout(Duration::from_secs(2))
         .connect_lazy_with(configuration.database().with_db())
+}
+
+/// Create a client for Redis and connect it.
+async fn create_and_connect_redis_client(config: &Settings) -> anyhow::Result<RedisClient> {
+    use secrecy::ExposeSecret;
+    let client = RedisClient::new(
+        RedisConfig::from_url(config.redis().url().expose_secret())?,
+        None,
+        None,
+        None,
+    );
+    let _ = client.connect();
+    client
+        .wait_for_connect()
+        .await
+        .context("Unable to connect Redis client")?;
+
+    Ok(client)
 }
 
 /// Utility trait to help setup different layers on the router.
@@ -138,6 +147,8 @@ trait AddRouterLayer {
     fn add_telemetry_layer(self) -> Self;
 
     fn add_metrics_layer(self) -> Self;
+
+    fn add_session_layer(self, redis_client: RedisClient) -> Self;
 }
 
 impl AddRouterLayer for Router {
@@ -177,5 +188,18 @@ impl AddRouterLayer for Router {
     fn add_metrics_layer(self) -> Self {
         crate::metrics::build_metric_layers(self)
             .expect("metrics layer should always be possible to setup")
+    }
+
+    fn add_session_layer(self, redis_client: RedisClient) -> Self {
+        let store = RedisStore::new(redis_client);
+
+        self.layer(
+            ServiceBuilder::new()
+                // Note: Why is this error handling layer needed? The types won't match otherwise for the session layer.
+                .layer(HandleErrorLayer::new(|_: BoxError| async {
+                    StatusCode::BAD_REQUEST
+                }))
+                .layer(SessionManagerLayer::new(store).with_secure(true)),
+        )
     }
 }

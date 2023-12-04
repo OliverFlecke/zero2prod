@@ -322,7 +322,7 @@ pub mod mock {
         pub async fn mock_send_email_endpoint_to_ok(&self) {
             Mock::given(path("/email"))
                 .and(method("POST"))
-                .respond_with(ResponseTemplate::new(StatusCode::OK))
+                .respond_with(ResponseTemplate::new(StatusCode::OK.as_u16()))
                 .mount(self.email_server())
                 .await;
         }
@@ -376,6 +376,6 @@ impl TestApp {
 }
 
 pub fn assert_is_redirect_to(response: &reqwest::Response, location: &str) {
-    assert_eq!(response.status(), StatusCode::SEE_OTHER);
+    assert_eq!(response.status(), StatusCode::SEE_OTHER.as_u16());
     assert_eq!(response.headers().get("Location").unwrap(), location);
 }
