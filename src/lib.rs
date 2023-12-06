@@ -131,6 +131,8 @@ async fn create_and_connect_redis_client(config: &Settings) -> anyhow::Result<Re
         None,
         None,
     );
+
+    #[allow(clippy::let_underscore_future)]
     let _ = client.connect();
     client
         .wait_for_connect()
