@@ -82,7 +82,7 @@ pub enum ChangePasswordError {
 }
 
 impl IntoResponse for ChangePasswordError {
-    fn into_response(self) -> askama_axum::Response {
+    fn into_response(self) -> Response {
         tracing::error!("{self:?}");
         match self {
             Self::Unexpected(_) => StatusCode::INTERNAL_SERVER_ERROR.into_response(),

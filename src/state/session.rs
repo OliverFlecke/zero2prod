@@ -3,34 +3,34 @@ use axum::{
     extract::FromRequestParts,
     response::{IntoResponse, Response},
 };
-use axum_sessions::extractors::WritableSession;
 use http::request::Parts;
 use uuid::Uuid;
 
 const USER_ID_KEY: &str = "user_id";
 
-pub struct Session(WritableSession);
+pub struct Session(tower_sessions::Session);
 
 impl Session {
-    /// Regenerate the current session for the user. See `WritableSession` for more details.
+    /// Regenerate the current session for the user.
     pub fn regenerate(&mut self) {
-        self.0.regenerate();
+        self.0.clear();
     }
 
     /// Log the user out of the current session.
-    pub fn log_out(mut self) {
-        self.0.destroy()
+    pub fn log_out(self) {
+        tracing::debug!("Clearing session for user");
+        self.0.delete();
     }
 
-    // TODO: Use custom errors instead of `anyhow`
-    pub fn insert_user_id(&mut self, user_id: Uuid) -> Result<(), anyhow::Error> {
+    pub fn insert_user_id(&mut self, user_id: Uuid) -> anyhow::Result<()> {
+        tracing::debug!("Inserting user id for {}", user_id);
         self.0
             .insert(USER_ID_KEY, user_id)
             .map_err(|e| anyhow::anyhow!(e))
     }
 
     pub fn get_user_id(&self) -> Option<Uuid> {
-        self.0.get(USER_ID_KEY)
+        self.0.get::<Uuid>(USER_ID_KEY).ok().flatten()
     }
 }
 
@@ -42,9 +42,9 @@ impl<S> FromRequestParts<S> for Session {
         tracing::trace!("Extracting session from request");
         use axum::RequestPartsExt;
         let session = parts
-            .extract::<WritableSession>()
+            .extract::<tower_sessions::Session>()
             .await
-            .map_err(|e| TypedSessionError::UnknownError(anyhow::anyhow!(e)))?;
+            .map_err(|(_, e)| TypedSessionError::UnknownError(anyhow::anyhow!(e)))?;
 
         Ok(Self(session))
     }

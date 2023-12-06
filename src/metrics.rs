@@ -1,5 +1,6 @@
 use anyhow::Context;
 use axum::{
+    body::Body,
     http::Request,
     middleware::{self, Next},
     response::{IntoResponse, Response},
@@ -78,7 +79,7 @@ impl IntoResponse for MetricsError {
 }
 
 /// Middleware to count number of requests.
-async fn request_counter_middleware<B>(request: Request<B>, next: Next<B>) -> Response {
+async fn request_counter_middleware(request: Request<Body>, next: Next) -> Response {
     let uri = request.uri().clone();
     let method = request.method().clone();
     REQUEST_COUNTER
@@ -98,7 +99,7 @@ async fn request_counter_middleware<B>(request: Request<B>, next: Next<B>) -> Re
 }
 
 /// Middleware to measure the duration of requests.
-async fn request_duration_middleware<B>(request: Request<B>, next: Next<B>) -> Response {
+async fn request_duration_middleware(request: Request<Body>, next: Next) -> Response {
     let timer = REQUEST_DURATION
         .with_label_values(&[request.uri().path(), request.method().as_str()])
         .start_timer();

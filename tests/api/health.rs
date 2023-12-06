@@ -13,7 +13,7 @@ async fn health_check_works() {
     let response = app.health_check().await;
 
     // Assert
-    assert_eq!(response.status(), StatusCode::OK);
+    assert_eq!(response.status(), StatusCode::OK.as_u16());
     assert_eq!(Some(0), response.content_length());
 }
 
@@ -31,7 +31,7 @@ async fn info_endpoint_gives_build_info() {
         .expect("Request failed");
 
     // Assert
-    assert_eq!(response.status(), StatusCode::OK);
+    assert_eq!(response.status(), StatusCode::OK.as_u16());
 
     let body = response.text().await.expect("unable to read body");
     let body: Value = serde_json::from_str(&body).expect("unable to parse json");
@@ -66,7 +66,7 @@ async fn status_endpoint_returns_up_when_both_services_are_up() {
         .expect("Request failed");
 
     // Assert
-    assert_eq!(response.status(), StatusCode::OK);
+    assert_eq!(response.status(), StatusCode::OK.as_u16());
 
     let body = response.text().await.expect("unable to read body");
     let body: Value = serde_json::from_str(&body).expect("unable to parse json");

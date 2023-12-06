@@ -6,13 +6,14 @@ use duplicate::duplicate_item;
 use secrecy::Secret;
 use sqlx::PgPool;
 use std::sync::Arc;
+use tower_sessions::fred::prelude::RedisClient;
 
 pub mod session;
 
 #[derive(Clone, Getters)]
 pub struct AppState {
     db_pool: Arc<PgPool>,
-    redis_client: Arc<redis::Client>,
+    redis_client: Arc<RedisClient>,
     email_client: Arc<EmailClient>,
     application_base_url: Arc<ApplicationBaseUrl>,
     hmac_secret: Arc<HmacSecret>,
@@ -25,7 +26,7 @@ impl AppState {
         config: &Settings,
         db_pool: PgPool,
         email_client: EmailClient,
-        redis_client: redis::Client,
+        redis_client: RedisClient,
     ) -> Self {
         Self {
             db_pool: Arc::new(db_pool),
@@ -46,7 +47,7 @@ impl AppState {
     [ EmailClient ]         [ email_client ];
     [ ApplicationBaseUrl ]  [ application_base_url ];
     [ HmacSecret ]          [ hmac_secret ];
-    [ redis::Client ]       [ redis_client ];
+    [ RedisClient ]         [ redis_client ];
 )]
 impl FromRef<AppState> for Arc<service_type> {
     fn from_ref(app_state: &AppState) -> Self {

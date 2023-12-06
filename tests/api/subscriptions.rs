@@ -18,7 +18,7 @@ async fn subscribe_returns_a_200_for_valid_form_data() {
     let response = app.post_subscriptions(body.into()).await;
 
     // Assert
-    assert_eq!(response.status(), StatusCode::OK);
+    assert_eq!(response.status(), StatusCode::OK.as_u16());
 }
 
 #[tokio::test]
@@ -59,7 +59,7 @@ async fn subscribe_returns_a_422_when_data_is_missing(
     // Assert
     assert_eq!(
         response.status(),
-        StatusCode::UNPROCESSABLE_ENTITY,
+        StatusCode::UNPROCESSABLE_ENTITY.as_u16(),
         // Additional customised error message on test failure
         "The API did not fail with 422 Unprocessable Entity when the payload was {}.",
         error_message
@@ -84,7 +84,7 @@ async fn subscribe_returns_a_422_when_fields_are_present_but_empty(
     // Assert
     assert_eq!(
         response.status(),
-        StatusCode::UNPROCESSABLE_ENTITY,
+        StatusCode::UNPROCESSABLE_ENTITY.as_u16(),
         // Additional customised error message on test failure
         "The API did not fail with 422 Unprocessable Entity when the payload was {}.",
         description
@@ -99,7 +99,7 @@ async fn subscribe_sends_a_confirmation_email_for_valid_data() {
 
     Mock::given(path("/email"))
         .and(method("POST"))
-        .respond_with(ResponseTemplate::new(StatusCode::OK))
+        .respond_with(ResponseTemplate::new(StatusCode::OK.as_u16()))
         .expect(1)
         .mount(app.email_server())
         .await;
@@ -119,7 +119,7 @@ async fn subscribe_sends_a_confirmation_email_with_a_link() {
 
     Mock::given(path("/email"))
         .and(method("POST"))
-        .respond_with(ResponseTemplate::new(StatusCode::OK))
+        .respond_with(ResponseTemplate::new(StatusCode::OK.as_u16()))
         .mount(app.email_server())
         .await;
 
@@ -149,5 +149,8 @@ async fn subscribe_fails_if_there_is_a_fatal_database_error() {
     let response = app.post_subscriptions(body.into()).await;
 
     // Assert
-    assert_eq!(response.status(), StatusCode::INTERNAL_SERVER_ERROR);
+    assert_eq!(
+        response.status(),
+        StatusCode::INTERNAL_SERVER_ERROR.as_u16()
+    );
 }

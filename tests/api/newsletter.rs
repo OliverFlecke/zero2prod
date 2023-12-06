@@ -22,7 +22,7 @@ async fn newsletters_are_not_delivered_to_unconfirmed_subscribers() {
     create_unconfirmed_subscriber(&app).await;
 
     Mock::given(any())
-        .respond_with(ResponseTemplate::new(StatusCode::OK))
+        .respond_with(ResponseTemplate::new(StatusCode::OK.as_u16()))
         // Assert no request is fired to email API.
         .expect(0)
         .mount(app.email_server())
@@ -51,7 +51,7 @@ async fn newsletters_are_delivered_to_confirmed_subscribers() {
     // Mocking external email server
     Mock::given(path("/email"))
         .and(method("POST"))
-        .respond_with(ResponseTemplate::new(StatusCode::OK))
+        .respond_with(ResponseTemplate::new(StatusCode::OK.as_u16()))
         .expect(1)
         .mount(app.email_server())
         .await;
@@ -70,7 +70,7 @@ async fn you_must_be_logged_in_to_publish_a_newsletter() {
     // Mocking external email server
     Mock::given(path("/email"))
         .and(method("POST"))
-        .respond_with(ResponseTemplate::new(StatusCode::OK))
+        .respond_with(ResponseTemplate::new(StatusCode::OK.as_u16()))
         .expect(1)
         .mount(app.email_server())
         .await;
@@ -114,7 +114,7 @@ async fn newsletters_returns_422_for_invalid_data(
 
     // Assert
     assert_eq!(
-        StatusCode::UNPROCESSABLE_ENTITY,
+        StatusCode::UNPROCESSABLE_ENTITY.as_u16(),
         response.status(),
         "The API did not fail with 422 Unprocessable entity when payload was {}.",
         error_message
@@ -146,7 +146,7 @@ async fn newsletter_creation_is_idempotent() {
 
     Mock::given(path("/email"))
         .and(method("POST"))
-        .respond_with(ResponseTemplate::new(StatusCode::OK))
+        .respond_with(ResponseTemplate::new(StatusCode::OK.as_u16()))
         .expect(1)
         .mount(app.email_server())
         .await;
@@ -188,7 +188,9 @@ async fn concurrent_form_submission_is_handled_gracefully() {
 
     Mock::given(path("/email"))
         .and(method("POST"))
-        .respond_with(ResponseTemplate::new(StatusCode::OK).set_delay(Duration::from_secs(2)))
+        .respond_with(
+            ResponseTemplate::new(StatusCode::OK.as_u16()).set_delay(Duration::from_secs(2)),
+        )
         .expect(1)
         .mount(app.email_server())
         .await;
@@ -235,7 +237,7 @@ mod utils {
 
         let _mock_guard = Mock::given(path("/email"))
             .and(method("POST"))
-            .respond_with(ResponseTemplate::new(StatusCode::OK))
+            .respond_with(ResponseTemplate::new(StatusCode::OK.as_u16()))
             .named("Create unconfirmed subscriber")
             .expect(1)
             .mount_as_scoped(app.email_server())

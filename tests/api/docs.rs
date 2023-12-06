@@ -20,12 +20,12 @@ async fn open_api_documentation_can_be_retrieved_as_json() {
         .expect("Request failed");
 
     // Assert
-    assert_eq!(response.status(), StatusCode::OK);
+    assert_eq!(response.status(), StatusCode::OK.as_u16());
     assert_ne!(response.content_length(), Some(0));
     assert_eq!(
         response
             .headers()
-            .get(CONTENT_TYPE)
+            .get(CONTENT_TYPE.as_str())
             .and_then(|x| x.to_str().ok()),
         Some("application/json")
     );
@@ -45,12 +45,12 @@ async fn open_api_documentation_can_be_retrieved_as_yaml() {
         .expect("Request failed");
 
     // Assert
-    assert_eq!(response.status(), StatusCode::OK);
+    assert_eq!(response.status(), StatusCode::OK.as_u16());
     assert_ne!(response.content_length(), Some(0));
     assert_eq!(
         response
             .headers()
-            .get(CONTENT_TYPE)
+            .get(CONTENT_TYPE.as_str())
             .and_then(|x| x.to_str().ok()),
         Some("application/yaml")
     );
@@ -68,18 +68,18 @@ async fn open_api_documentation_can_be_retrieved(#[case] content_type: String) {
     let response = app
         .api_client()
         .get(app.at_url("/docs/openapi"))
-        .header(ACCEPT, format!("application/{content_type}"))
+        .header(ACCEPT.as_str(), format!("application/{content_type}"))
         .send()
         .await
         .expect("Request failed");
 
     // Assert
-    assert_eq!(response.status(), StatusCode::OK);
+    assert_eq!(response.status(), StatusCode::OK.as_u16());
     assert_ne!(response.content_length(), Some(0));
     assert_eq!(
         response
             .headers()
-            .get(CONTENT_TYPE)
+            .get(CONTENT_TYPE.as_str())
             .and_then(|x| x.to_str().ok()),
         Some(format!("application/{content_type}").as_str())
     );

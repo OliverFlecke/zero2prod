@@ -1,7 +1,7 @@
 use crate::state::AppState;
 use axum::{
     async_trait,
-    body::Empty,
+    body::Body,
     extract::FromRequestParts,
     http::request::Parts,
     response::{IntoResponse, IntoResponseParts, Response},
@@ -29,14 +29,14 @@ impl FlashMessage {
     }
 
     pub fn set_message_with_name(self, name: &str, message: String) -> Self {
-        let cookie = Cookie::build(format!("{FLASH_MSG_KEY}{name}"), message)
+        let cookie = Cookie::build(Cookie::new(format!("{FLASH_MSG_KEY}{name}"), message))
             // Set the cookie to expire straight away so only the first
             // GET request will contain the error message.
             .max_age(cookie::time::Duration::seconds(1))
             .secure(true)
             .http_only(true)
             .path("/")
-            .finish();
+            .build();
         let cookie_jar = self.cookie_jar.add(cookie);
         FlashMessage { cookie_jar }
     }
@@ -82,7 +82,7 @@ impl FromRequestParts<AppState> for FlashMessage {
                 tracing::error!("{e:?}");
                 Response::builder()
                     .status(StatusCode::INTERNAL_SERVER_ERROR)
-                    .body(Empty::default())
+                    .body(Body::empty())
                     .unwrap()
                     .into_response()
             })?;

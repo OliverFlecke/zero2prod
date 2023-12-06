@@ -166,7 +166,7 @@ mod tests {
             .and(path("/email"))
             .and(method("POST"))
             .and(SendEmailBodyMatcher)
-            .respond_with(ResponseTemplate::new(StatusCode::OK))
+            .respond_with(ResponseTemplate::new(StatusCode::OK.as_u16()))
             .expect(1)
             .mount(&mock_server)
             .await;
@@ -186,7 +186,7 @@ mod tests {
         let email_client = email_client(mock_server.uri());
 
         Mock::given(header_exists("X-Postmark-Server-Token"))
-            .respond_with(ResponseTemplate::new(StatusCode::OK))
+            .respond_with(ResponseTemplate::new(StatusCode::OK.as_u16()))
             .expect(1)
             .mount(&mock_server)
             .await;
@@ -206,7 +206,9 @@ mod tests {
         let email_client = email_client(mock_server.uri());
 
         Mock::given(any())
-            .respond_with(ResponseTemplate::new(StatusCode::INTERNAL_SERVER_ERROR))
+            .respond_with(ResponseTemplate::new(
+                StatusCode::INTERNAL_SERVER_ERROR.as_u16(),
+            ))
             .expect(1)
             .mount(&mock_server)
             .await;
@@ -226,7 +228,8 @@ mod tests {
         let mock_server = MockServer::start().await;
         let email_client = email_client(mock_server.uri());
 
-        let response = ResponseTemplate::new(StatusCode::OK).set_delay(Duration::from_secs(180));
+        let response =
+            ResponseTemplate::new(StatusCode::OK.as_u16()).set_delay(Duration::from_secs(180));
         Mock::given(any())
             .respond_with(response)
             .expect(1)
